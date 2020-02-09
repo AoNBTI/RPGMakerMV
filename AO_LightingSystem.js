@@ -18,6 +18,10 @@
 // This License Notice described below
 // Triacontane様 (C)2016 Triacontane
 // 
+/*
+2020/2/8 ver 1.00 初版
+2020/2/9 ver 1.01 YEP_X_AnimatedSVEnemies.js対応用スケール感知を追加
+*/
 
 /*:
  * @plugindesc ライティングプラグイン
@@ -145,7 +149,7 @@
  * @default true
  * @desc　エネミーバトラーが戦闘不能の時はそのライトを消去するか(true/false)
  *
- * @help AO_LightingSystem.js ver1.00
+ * @help AO_LightingSystem.js ver1.01
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  *
@@ -415,12 +419,13 @@
 /*
 コピーペースト用Json文字列
 {
-	"imageUrl":"light.png","animationWait":8,"randomFrame":false,"flick":false,"swing":false,"followDirection":false,"screenBind":false,
+	"imageUrl":"light","animationWait":8,"randomFrame":false,"flick":false,"swing":false,"followDirection":false,"screenBind":false,
 	"position":{"x":0,"y":0},"shift":{"x":0,"y":0},"blendMode":1,"opacity":255,"spriteAnchor":{"x":0.5,"y":0.5},"anchor":{"x":0.5,"y":0.5},
 	"rotation":0,"scale":{"x":1.0,"y":1.0}
 }
 /*
 <TODO>
+レフストされたエネミースプライトの消去処理はやっぱり必要かも？　影削除が残るときがある
 スプライトピクチャも光扱いにできるようにしてみるか。優先度設定プラグイン用に。
 GameLightにアニメーションを設定できるパラメータは持たせたつもりだけどどうしようか･･･
 サンプル用png画像つくらなくっちゃ･･･上手く塗ればレインボーができんじゃね？
@@ -441,7 +446,10 @@ GameLightにアニメーションを設定できるパラメータは持たせ�
 Game_Objectにデータ保存かな？←しました！たぶんセーブロードも大丈夫。Game_Screen だけは即消ししてるけど
 あー余計な事思いついた･･･加算レイヤーも欲しくなってきた････←作っちゃった！！
  */
- 
+
+var Imported = Imported || {};
+Imported.AO_LightingSystem = true;
+
 (function() {
 	'use strict';
 	const pluginName = 'AO_LightingSystem';
@@ -1463,6 +1471,7 @@ Game_Objectにデータ保存かな？←しました！たぶんセーブロー
 			this._alpha = 0.3;
 			this.createImageData();
 		}
+		
 		//イメージデータ作るの頑張ったのに全然つかってない！
 		createImageData() {
 			const bitmap = this._targetSprite.bitmap;
@@ -1471,6 +1480,10 @@ Game_Objectにデータ保存かな？←しました！たぶんセーブロー
 					this._imageData = bitmap._context.getImageData(0, 0, bitmap.width, bitmap.height);
 				}.bind(this));
 			}
+		}
+		
+		isMainSprite() {
+			return this.parent() && this.parent() instanceof Sprite_Battler;
 		}
 		
 		bitmap() {
@@ -1518,12 +1531,20 @@ Game_Objectにデータ保存かな？←しました！たぶんセーブロー
 			return this._targetSprite.visible || (this._targetSprite.visible && this._targetSprite.opacity !== 0);
 		}
 		
+		scaleX() {
+			return this.isMainSprite() ? this._targetSprite.scale.x * this.parent().scale.x : this._targetSprite.scale.x;
+		}
+		
+		scaleY() {
+			return this.isMainSprite() ? this._targetSprite.scale.y * this.parent().scale.y : this._targetSprite.scale.y;
+		}
+		
 		invertX() {
-			return this._targetSprite.scale.x < 0;
+			return this.scaleX() < 0;
 		}
 		
 		invertY() {
-			return this._targetSprite.scale.y < 0;
+			return this.scaleY() < 0;
 		}
 		
 		// vertexData は描写された位置だからそのままだとキャラクター移動時に遅れが発生するのかも
@@ -1573,11 +1594,11 @@ Game_Objectにデータ保存かな？←しました！たぶんセーブロー
 		}
 		
 		scaledWidth() {
-			return Math.abs(this.dirtyWidth() * this._targetSprite.scale.x);
+			return Math.abs(this.dirtyWidth() * this.scaleX());
 		}
 		
 		scaledHeight() {
-			return Math.abs(this.dirtyHeight() * this._targetSprite.scale.y);
+			return Math.abs(this.dirtyHeight() * this.scaleY());
 		}
 		
 	}
@@ -1903,18 +1924,17 @@ Game_Objectにデータ保存かな？←しました！たぶんセーブロー
 		_Sprite_Enemy_update.apply(this, arguments);
 	};
 	*/
-	//この処理だと最後の一匹は消えないんだよね・・・
-	/*
+	
+	//この処理だと最後の一匹は消えない時があるんだよね・・・
 	const _Sprite_Enemy_updateEffect = Sprite_Enemy.prototype.updateEffect;
 	Sprite_Enemy.prototype.updateEffect = function() {
 		if (this.isEffecting() && !this._enemy.isAlive()) {
 			const sprite = this._mainSprite ? this._mainSprite : this;
 			LightingManager.removeSprite(sprite);
-			console.log("Remove Enemy");
 		}
 		_Sprite_Enemy_updateEffect.apply(this, arguments);
 	};
-	*/
+	
 	
 	
 	const _Sprite_Damage_createChildSprite = Sprite_Damage.prototype.createChildSprite;
