@@ -332,16 +332,16 @@
  * AOLS_CREATE_BATTLEBACK_LIGHT 320 200 light 1 255 300 300
  *
  * <戦闘背景に表示したライトを全て消すコマンド>
- * AOLS_CLEAR_BATTLBACK_LIGHTS
+ * AOLS_CLEAR_BATTLEBACK_LIGHTS
  * AOLSバトルバックライト消去
  * 
  * <戦闘背景に表示したライトを一つ消すコマンド>
- * AOLS_CLEAR_BATTLBACK_LIGHT インデックス番号
+ * AOLS_CLEAR_BATTLEBACK_LIGHT インデックス番号
  * AOLSバトルバックライト単独消去 インデックス番号
  * インデックス番号は生成した順番で0から始まる整数です
  *
  * 例)戦闘背景に一番最初に生成したライトを消去
- * AOLS_CLEAR_BATTLBACK_LIGHT 0
+ * AOLS_CLEAR_BATTLEBACK_LIGHT 0
  *
  * <戦闘背景へのライト生成を予約するコマンド>
  * AOLS_RESERVE_BATTLEBACK_LIGHT 画面x座標 画面y座標 ファイル名 フレーム 不透明度 拡大率X 拡大率Y
@@ -353,11 +353,11 @@
  * AOLSバトルバックライト予約 400 0 light[3x3][NR] 8 0 350 100
  *
  * <戦闘背景へ表示するライトの予約を全て取り消すコマンド>
- * AOLS_CLEAR_RESERVED_BATTLBACK_LIGHTS
+ * AOLS_CLEAR_RESERVED_BATTLEBACK_LIGHTS
  * AOLSバトルバックライト予約消去
  *
  * <戦闘背景へ表示するライトの予約を一つ取り消すコマンド>
- * AOLS_CLEAR_RESERVED_BATTLBACK_LIGHT インデックス番号
+ * AOLS_CLEAR_RESERVED_BATTLEBACK_LIGHT インデックス番号
  * AOLSバトルバックライト予約単独消去 インデックス番号
  * 例)戦闘背景に最後から2番目に予約したライトの消去
  * AOLSバトルバックライト予約単独消去 -2
@@ -425,7 +425,7 @@
 }
 /*
 <TODO>
-レフストされたエネミースプライトの消去処理はやっぱり必要かも？　影削除が残るときがある
+レフストされたエネミースプライトの消去処理はやっぱり必要かも？　影削除が残るときがある。どうしたら綺麗に処理できるか･･･
 スプライトピクチャも光扱いにできるようにしてみるか。優先度設定プラグイン用に。
 GameLightにアニメーションを設定できるパラメータは持たせたつもりだけどどうしようか･･･
 サンプル用png画像つくらなくっちゃ･･･上手く塗ればレインボーができんじゃね？
@@ -821,15 +821,15 @@ Imported.AO_LightingSystem = true;
 	setPluginCommand("マップライト単独消去", "clearMapLight");
 	setPluginCommand("_RESERVE_BATTLEBACK_LIGHT", "reserveBattleBackLight");
 	setPluginCommand("バトルバックライト予約", "reserveBattleBackLight");
-	setPluginCommand("_CLEAR_RESERVED_BATTLBACK_LIGHTS", "clearReservedBattleBackLights");
+	setPluginCommand("_CLEAR_RESERVED_BATTLEBACK_LIGHTS", "clearReservedBattleBackLights");
 	setPluginCommand("バトルバックライト予約消去", "clearReservedBattleBackLights");
-	setPluginCommand("_CLEAR_RESERVED_BATTLBACK_LIGHT", "clearReservedBattleBackLight");
+	setPluginCommand("_CLEAR_RESERVED_BATTLEBACK_LIGHT", "clearReservedBattleBackLight");
 	setPluginCommand("バトルバックライト予約単独消去", "clearReservedBattleBackLight");
 	setPluginCommand("_CREATE_BATTLEBACK_LIGHT", "createBattleBackLight");
 	setPluginCommand("バトルバックライト作製", "createBattleBackLight");
-	setPluginCommand("_CLEAR_BATTLBACK_LIGHTS", "clearBattleBackLights");
+	setPluginCommand("_CLEAR_BATTLEBACK_LIGHTS", "clearBattleBackLights");
 	setPluginCommand("バトルバックライト消去", "clearBattleBackLights");
-	setPluginCommand("_CLEAR_BATTLBACK_LIGHT", "clearBattleBackLight");
+	setPluginCommand("_CLEAR_BATTLEBACK_LIGHT", "clearBattleBackLight");
 	setPluginCommand("バトルバックライト単独消去", "clearBattleBackLight");
 	
 	setPluginCommand("_MAKE_TARGET_LIGHT_JSON", "createTargetLightJson");
@@ -892,7 +892,7 @@ Imported.AO_LightingSystem = true;
 				$gameTemp.createBattleBackLightJson(argsToString(args));
 				break;
 			case "clearBattleBackLights":
-				$gameTemp.clearBattleBackLights();
+				$gameTemp.clearBattleBackLights();;
 				break;
 			case "clearBattleBackLight":
 				$gameTemp.clearBattleBackLight(getArgNumber(args[0]));
@@ -1636,7 +1636,7 @@ Imported.AO_LightingSystem = true;
 		LightingManager.update();
 	};
 
-    Spriteset_Base.prototype.createLightingLayer = function() {
+	Spriteset_Base.prototype.createLightingLayer = function() {
 		LightingManager.clearGameObjectSets();
 		LightingManager.clearLightSource();
 		const width = Graphics.width;
@@ -1654,11 +1654,11 @@ Imported.AO_LightingSystem = true;
 		this._lightLayer.blendMode = lightLayerBlendMode;
 		
 		LightingManager.registLightingLayer(this._shadowLayer, this._lightLayer);
-    };
+	};
 	
 	Spriteset_Base.prototype.addShadowLayer = function() {
 		this.addChild(this._lightLayer);
-		this.addChild(this._shadowLayer);
+	this.addChild(this._shadowLayer);
 	};
 	
 	
@@ -1688,7 +1688,12 @@ Imported.AO_LightingSystem = true;
 	};
 	
 	Game_Screen.prototype.copyBattleLights = function() {
-		if (this._battleGameLights) {this.gameLights = this._battleGameLights.slice();}
+		if (this._battleGameLights) {
+			this._battleGameLights.forEach((gameLight) => {
+				gameLight.spriteDrawn = false;
+			});
+			this.gameLights = this._battleGameLights.slice();
+		}
 	};
 	
 	const _Game_Map_setup = Game_Map.prototype.setup;
@@ -1822,19 +1827,19 @@ Imported.AO_LightingSystem = true;
 	//  Game_Object 持ちは Game_Object を登録
 	//=====================================================================================================================
 	const _Sprite_Character_updateBitmap = Sprite_Character.prototype.updateBitmap;
-    Sprite_Character.prototype.updateBitmap = function() {
-        if (this.isImageChanged()) this._imageChanging = true;
-        _Sprite_Character_updateBitmap.apply(this, arguments);
-        if (this._imageChanging) {
+	Sprite_Character.prototype.updateBitmap = function() {
+		if (this.isImageChanged()) this._imageChanging = true;
+		_Sprite_Character_updateBitmap.apply(this, arguments);
+		if (this._imageChanging) {
 			const shadowAlpha = this._character.shadowAlpha();
 			if (shadowAlpha) {
 				this.bitmap.addLoadListener(function() {
 					LightingManager.registSprite(this, shadowAlpha);
 				}.bind(this));
 			}
-            this._imageChanging = false;
-        }
-    };
+			this._imageChanging = false;
+		}
+	};
 	
 	const _Sprite_Character_setCharacter = Sprite_Character.prototype.setCharacter;
 	Sprite_Character.prototype.setCharacter = function(character) {
