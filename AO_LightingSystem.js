@@ -494,10 +494,10 @@ Imported.AO_LightingSystem = true;
 	//光スプライトのアニメーション指定用
 	const notReverseTag = "NR";
 	
-    function getArgString(arg, upperFlg) {
-        if (typeof arg === "string") return upperFlg ? arg.toUpperCase().replace(/^\s+|\s+$/g, '') : arg.replace(/^\s+|\s+$/g, '');
+	function getArgString(arg, upperFlg) {
+		if (typeof arg === "string") return upperFlg ? arg.toUpperCase().replace(/^\s+|\s+$/g, '') : arg.replace(/^\s+|\s+$/g, '');
 		return "";
-    }
+	}
 	
 	//文字列配列を一つの文字列に変換する。プラグインコマンド用
 	function argsToString(args) {
@@ -620,12 +620,12 @@ Imported.AO_LightingSystem = true;
 	}
 	
 	//========================================================================================
-    // ゲームオブジェクト捕獲用関数
-    //  バトルシーンでターン終了時開始イベントだとnullが返るので注意。
-    //  マップシーンではフォロワー： ～ -2 プレイヤー : -1 実行中のイベント : 0 指定したIDのイベント : 1 ～
+	// ゲームオブジェクト捕獲用関数
+	//  バトルシーンでターン終了時開始イベントだとnullが返るので注意。
+	//  マップシーンではフォロワー： ～ -2 プレイヤー : -1 実行中のイベント : 0 指定したIDのイベント : 1 ～
 	//  バトルシーンではバトラー: ～ -1 行動中のバトラー : 0 エネミー : 1 ～
 	//  で捕獲する。
-    //========================================================================================
+	//========================================================================================
 	function getTargetGameObject(id) {
 		return $gameParty.inBattle() ? getTargetGameBattler(id) : getTargetGameCharacter(id);
 	};
@@ -801,7 +801,7 @@ Imported.AO_LightingSystem = true;
 	const pluginCommandMap = new Map();
 	function setPluginCommand(commandName, methodName) {
         pluginCommandMap.set(metaTagPrefix + commandName, methodName);
-    };
+	};
 	
 	setPluginCommand("_SHADOW_COLOR", "setShadowLayerColor");
 	setPluginCommand("影色セット", "setShadowLayerColor");
