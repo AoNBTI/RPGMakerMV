@@ -1654,11 +1654,11 @@ Imported.AO_LightingSystem = true;
 		this._lightLayer.blendMode = lightLayerBlendMode;
 		
 		LightingManager.registLightingLayer(this._shadowLayer, this._lightLayer);
-    };
+	};
 	
 	Spriteset_Base.prototype.addShadowLayer = function() {
 		this.addChild(this._lightLayer);
-		this.addChild(this._shadowLayer);
+	this.addChild(this._shadowLayer);
 	};
 	
 	
