@@ -1822,19 +1822,19 @@ Imported.AO_LightingSystem = true;
 	//  Game_Object 持ちは Game_Object を登録
 	//=====================================================================================================================
 	const _Sprite_Character_updateBitmap = Sprite_Character.prototype.updateBitmap;
-    Sprite_Character.prototype.updateBitmap = function() {
-        if (this.isImageChanged()) this._imageChanging = true;
-        _Sprite_Character_updateBitmap.apply(this, arguments);
-        if (this._imageChanging) {
+	Sprite_Character.prototype.updateBitmap = function() {
+		if (this.isImageChanged()) this._imageChanging = true;
+		_Sprite_Character_updateBitmap.apply(this, arguments);
+		if (this._imageChanging) {
 			const shadowAlpha = this._character.shadowAlpha();
 			if (shadowAlpha) {
 				this.bitmap.addLoadListener(function() {
 					LightingManager.registSprite(this, shadowAlpha);
 				}.bind(this));
 			}
-            this._imageChanging = false;
-        }
-    };
+			this._imageChanging = false;
+		}
+	};
 	
 	const _Sprite_Character_setCharacter = Sprite_Character.prototype.setCharacter;
 	Sprite_Character.prototype.setCharacter = function(character) {
