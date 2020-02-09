@@ -1636,7 +1636,7 @@ Imported.AO_LightingSystem = true;
 		LightingManager.update();
 	};
 
-    Spriteset_Base.prototype.createLightingLayer = function() {
+	Spriteset_Base.prototype.createLightingLayer = function() {
 		LightingManager.clearGameObjectSets();
 		LightingManager.clearLightSource();
 		const width = Graphics.width;
