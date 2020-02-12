@@ -21,6 +21,7 @@
 /*
 2020/2/8 ver 1.00 初版
 2020/2/9 ver 1.01 YEP_X_AnimatedSVEnemies.js対応用スケール感知を追加
+2020/2/11 ver 1.02 refreshMoldCanvas() をリファクタリングして軽量化 y座標ソート対応　ブラーパラメータの廃止
 */
 
 /*:
@@ -125,22 +126,12 @@
  * @default 2
  * @desc 影レイヤースプライトのデフォルトブレンドモード(0：通常 1：加算 2：乗算 3：スクリーン)
  *
- * @param 影レイヤーブラー
- * @min 0
- * @default 0
- * @desc 影レイヤー全体に適応するブラー(pixel値)
- *
  * @param 光レイヤーブレンドモード
  * @type number
  * @min 0
  * @max 3
  * @default 3
  * @desc 光レイヤースプライトのデフォルトブレンドモード(0：通常 1：加算 2：乗算 3：スクリーン)
- *
- * @param 光レイヤーブラー
- * @min 0
- * @default 0
- * @desc 光レイヤー全体に適応するブラー(pixel値)
  *
  * @param エネミーライト戦闘不能同期
  * @type boolean
@@ -149,7 +140,14 @@
  * @default true
  * @desc　エネミーバトラーが戦闘不能の時はそのライトを消去するか(true/false)
  *
- * @help AO_LightingSystem.js ver1.01
+ * @param キャラクター光影削除リージョン
+ * @type number
+ * @min 0
+ * @max 255
+ * @default 0
+ * @desc キャラクターの光影削除率を自動で0にするリージョンID
+ *
+ * @help AO_LightingSystem.js ver1.02
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  *
@@ -162,9 +160,6 @@
  * 影表現用スプライト(デフォルトで乗算合成)を追加します。
  * どちらのスプライトも各種スプライトと重なった部分が指定の割合で透明になります
  * 乗算の影レイヤーがスクリーンの光レイヤーより上に描写されます
- * この仕組みにおいて光と影の削除率はスプライトのz値とy位置を考慮しないため
- * 重なって表示される頭身のバトラー等は光影の削除率を統一しておくことを
- * おすすめします
  *
  * 既存のライティングプラグインと異なりライトの作製には画像を利用します
  * これにより光の形を自在に設定する事が可能です
@@ -223,8 +218,8 @@
  * </Light>
  *
  * <イベントライトの設定２>
- * <LightJson>ライト用各種パラメータ(Json形式で記載)</LightJson>と記載することで
- * より柔軟なパラメータ設定が可能になります
+ * イベントの注釈に<LightJson>ライト用各種パラメータ(Json形式で記載)</LightJson>
+ * と記載することでより柔軟なパラメータ設定が可能になります
  * <LightJson>タグ内では必要なパラメータだけ記載する事が可能です
  * 記載しなかったパラメータはデフォルト値が適応されます
  * Json形式で指定できるパラメータに関してはヘルプの末尾に記載しています
@@ -243,6 +238,7 @@
  * プラグインパラメータで指定した光影削除が設定されます
  * <shadowAlphaC:光影削除率(0-100)>と記載すると、そのイベントの光影削除率を
  * 設定することも可能です
+ * メモ欄への記載がない場合は光影削除率0として扱われます
  *
  * 例)イベントの光影削除率を80%に設定
  * <shadowAlphaC:80>
@@ -265,6 +261,9 @@
  * 赤・緑・青は0-255の整数・アルファは0-1の小数・フレーム数は0以上の整数です
  * ブレンドモードがデフォルトの場合乗算の結果画面は暗くなります
  *
+ * 例)影レイヤー色をR:0,G:0,B:60,A:1へ360フレームで変更
+ * AOLS_SHADOW_COLOR 0 0 60 1 360
+ *
  * 光(スクリーン)レイヤーの色調変更
  * AOLS_LIGHT_COLOR 赤 緑 青 アルファ フレーム数
  * AOLS光色セット 赤 緑 青 アルファ フレーム数
@@ -272,15 +271,22 @@
  * 赤・緑・青は0-255の整数・アルファは0-1の小数・フレーム数は0以上の整数です
  * ブレンドモードがデフォルトの場合スクリーンの結果画面は明るくなります
  *
+ * 例）光レイヤーの色をR:60,G:30,B:0,A:0.9へ360フレームで変更
+ * AOLS光色セット 60 30 0 0.9 360
+ *
  * <イベント・キャラクター・フォロワー･アクター・エネミーへライトを生成するコマンド>
  * AOLS_MAKE_TARGET_LIGHT ターゲット番号 ファイル名 フレーム 不透明度 拡大率X 拡大率Y
  * AOLSターゲットライト作製 ターゲット番号 ファイル名 フレーム 不透明度 拡大率X 拡大率Y
- * ターゲット番号で指定したキャラクター・バトラーに、ファイル名の画像光スプライトを生成します
+ * ターゲット番号で指定したキャラクター・バトラーに
+ * ファイル名の画像光スプライトを生成します
  * ターゲット番号の指定は以下に従います
- * マップシーン フォロワー： ～ -2 プレイヤー : -1 実行中のイベント : 0 指定したIDのイベント : 1 ～
- * バトルシーン バトラー: ～ -1 行動中のバトラー : 0 エネミー : 1 ～
+ * ===マップシーン===
+ * フォロワー： ～ -2 プレイヤー : -1 実行中のイベント : 0 指定したIDのイベント : 1 ～
+ * ===バトルシーン===
+ * バトラー: ～ -1 行動中のバトラー : 0 エネミー : 1 ～
  * ファイル名はimg/lightsフォルダ内の拡張子無しpngファイル名です
- * フレームはファイル名でアニメーションさせる場合の1コマのフレーム数(0以上の整数値)です
+ * フレームはファイル名でアニメーションさせる場合の
+ * 1コマのフレーム数(0以上の整数値)です
  * 不透明度は0-255の整数値、拡大率はともに0-100の整数値です
  *
  * 例)一人目のフォロワーにlight[3x1].pngを光スプライトとして生成して1コマ8フレームで再生
@@ -425,14 +431,20 @@
 }
 /*
 <TODO>
-レフストされたエネミースプライトの消去処理はやっぱり必要かも？　影削除が残るときがある。どうしたら綺麗に処理できるか･･･
+あー建物の裏側とか歩いた時に相当まずいことになるか･･･どうやって解決しようか･･･
+	現実的なところではリージョンで設定する？←リージョンでの指定はおっけー自動設置はちょっと見送りかなぁ･･･
+スプライトアニメーション周りとかの処理を最適化して、もうちょっと軽くしたいなぁ･･･
 スプライトピクチャも光扱いにできるようにしてみるか。優先度設定プラグイン用に。
 GameLightにアニメーションを設定できるパラメータは持たせたつもりだけどどうしようか･･･
 サンプル用png画像つくらなくっちゃ･･･上手く塗ればレインボーができんじゃね？
 光ってる(範囲内にいる)イベント・プレイヤー・バトラーに自動でステータスが付くようにできたりするだろうか･･･なんに使うかわからんが
 <保留>
-ソートと影キャンバスの削り手法を変えたらY位置を意識した削りに変えられるか？←思いつかないから思いついたら！
+ブラーが機能してないけど、機能させると画面周囲もぶれるか･･･？ブラーをかける場所にもよるんだけど・・・削りのブラーに統合して対応しようか･･･←登録スプライトが多くなるととんでもない重さになるぞ！パラメータ削除済み
 <済み扱い>
+レジストされたエネミースプライトの消去処理が？　影削除が残るときがある。どうしたら綺麗に処理できるか･･･←たぶんできた！
+イベントスプライトのYソートでの描写が一部上手くいってない！なんでだろう！←screenY()の問題！要継続チェック！！
+ソートと影キャンバスの削り手法を変えたらY位置を意識した削りに変えられるか？←思いつかないから思いついたら！←出来たかもしれないけど自信ない！
+Sprite_Light にzを指定したらちらつきが直った。アニメーションと同じ8でいいのかな？← sprite.z が undefined の sprite は結構あった！　競合しないように関数の戻り値で規定
 いい加減プ・・・プラグインコマンド・・・つくれ・・・←最低限は･･･
 バトラーが死んだらライトも消すかどうか←エネミーだけはプラグインパラメータで指定できるようにした！アクターはいらんだろたぶん
 ライトを一つずつ消去できるコマンドつくる？←つくったつもり！
@@ -473,14 +485,16 @@ Imported.AO_LightingSystem = true;
 	const lightLayerCutting = getArgBoolean(parameters["光レイヤー成型適応"]);
 	//0：通常 1：加算 2：乗算 3：スクリーン
 	const shadowLayerBlendMode = getArgNumber(parameters["影レイヤーブレンドモード"]).clamp(0, 3);
-	//影レイヤー全体のブラー。ピクセルで指定
-	const shadowLayerBlur = Math.max(0, getArgNumber(parameters["影レイヤーブラー"]));
 	//0：通常 1：加算 2：乗算 3：スクリーン
 	const lightLayerBlendMode = getArgNumber(parameters["光レイヤーブレンドモード"]).clamp(0, 3);
-	//光レイヤー全体のブラー。ピクセルで指定
-	const lightLayerBlur = Math.max(0, getArgNumber(parameters["光レイヤーブラー"]));
 	
 	const enemyUnableFightReflection = getArgBoolean(parameters["エネミーライト戦闘不能同期"]);
+	
+	//パラメータ削除中
+	//const layeredAutoAlpha = getArgBoolean(parameters["キャラクター光影削除率自動調節"]);
+	const layeredAutoAlpha = false;
+	
+	const assignedRegionId = getArgNumber(parameters["キャラクター光影削除リージョン"]).clamp(0, 255);
 	
 	const shadowLayerColor = [0,0,0,0];
 	const lightLayerColor = [100,100,100,0];
@@ -683,7 +697,7 @@ Imported.AO_LightingSystem = true;
 	//=====================================================================================================================
 	//Game_Temp
 	//  スクリプトコマンド定義
-	//  
+	//  他ファイルから操作する事を想定
 	//=====================================================================================================================
 	Game_Temp.prototype.setShadowLayerColor = function(r, g, b, a, duration) {
 		LightingManager.setShadowLayerColor([r,g,b,a], duration);
@@ -912,13 +926,11 @@ Imported.AO_LightingSystem = true;
 		static initMembers() {
 			if (this._shadowLayerColor === undefined) {this._shadowLayerColor = shadowLayerColor;}
 			if (this._shadowLayerBlendMode === undefined) {this._shadowLayerBlendMode = shadowLayerBlendMode;}
-			if (this._shadowLayerBlur === undefined) {this._shadowLayerBlur = shadowLayerBlur;}
 			if (this._shadowDuration === undefined) {this._shadowDuration = 0;}
 			if (this._shadowLayerTargetColor === undefined) {this._shadowLayerTargetColor = this._shadowLayerColor;}
 			
 			if (this._lightLayerColor === undefined) {this._lightLayerColor = lightLayerColor;}
 			if (this._lightLayerBlendMode === undefined) {this._lightLayerBlendMode = lightLayerBlendMode;}
-			if (this._lightLayerBlur === undefined) {this._lightLayerBlur = lightLayerBlur;}
 			if (this._lightDuration === undefined) {this._lightDuration = 0;}
 			if (this._lightLayerTargetColor === undefined) {this._lightLayerTargetColor = this._lightLayerColor;}
 			if (this._layerUpdateSkipDuration === undefined) {this._layerUpdateSkipDuration = 3;}
@@ -930,8 +942,8 @@ Imported.AO_LightingSystem = true;
 			}
 			
 			if (this._lightLayerCutting === undefined) {this._lightLayerCutting = lightLayerCutting;}
-			
 			if (this.enemyUnableFightReflection === undefined) {this.enemyUnableFightReflection = enemyUnableFightReflection;}
+			if (this.layeredAutoAlpha === undefined) {this.layeredAutoAlpha = layeredAutoAlpha;}
 		}
 		
 		static registLightingLayer(shadowLayer, lightLayer) {
@@ -974,22 +986,18 @@ Imported.AO_LightingSystem = true;
 				}
 				if (!inculde) {
 					const lightSource = new LightSource(sprite);
-					alpha = alpha ? alpha : defaultAlpha;
+					alpha = alpha ? alpha : 0;
 					lightSource.setAlpha(alpha);
 					this._lightSourceList.push(lightSource);
-					//console.log("RESIST", this._lightSourceList);
 				}
 			}
 		}
 		
 		static removeSprite(sprite) {
 			if (!this._lightSourceList) return;
-			for (let i = this._lightSourceList.length - 1; i > 0; i--) {
-				if (this._lightSourceList[i]._targetSprite === sprite) {
-					this._lightSourceList.splice(i, 1);
-					//console.log("REMOVE");
-				}
-			}
+			this._lightSourceList = this._lightSourceList.filter((lightSource) => {
+				return lightSource._targetSprite !== sprite;
+			});
 		}
 		
 		static update() {
@@ -999,6 +1007,7 @@ Imported.AO_LightingSystem = true;
 			this.updateLightSourceList();
 			//現在はリフレッシュ内でライトソースをソート中
 			this.refreshLightSourceList();
+			
 			
 			this.updateColor();
 			this.refreshMoldCanvas();
@@ -1042,18 +1051,23 @@ Imported.AO_LightingSystem = true;
 		static refreshLightSourceList() {
 			if (!this._lightSourceList) return;
 			
-			//アクティブでないライトソースを除去 これは上手く動作してるかわからん・・・
+			//アクティブでないライトソースを除去
 			for (let i = this._lightSourceList.length - 1; i > 1; i--) {
 				const lightSource = this._lightSourceList[i];
 				if (!lightSource.parent() || !lightSource.bitmap() || (lightSource.bitmap().isReady() && lightSource.bitmap().width <= 1)) {
-					this._lightSourceList.splice(i, 1);
-					//console.log("clearLightSource");
+					this._lightSourceList.splice(i, 0);
 				}
 			}
-			//アルファ値でソートして、アルファ値が同じ光源が重なり合った場合は、アルファ値が増加しないように設定している。
-			//現在毎フレームソート中
+
+			//マップ上のソートと同様のY位置ソート 優先度z>y>id
 			this._lightSourceList.sort((sourceA, sourceB) => {
-				return sourceA.alpha() - sourceB.alpha();
+				const az = sourceA.screenZ();
+				const bz = sourceB.screenZ();
+				if (az !== bz) {return az - bz;}
+				const ay = sourceA.sortedScreenY();
+				const by = sourceB.sortedScreenY();
+				if (ay !== by) {return ay - by;}
+				else return sourceA.spriteId() - sourceB.spriteId();
 			});
 		}
 		
@@ -1065,42 +1079,22 @@ Imported.AO_LightingSystem = true;
 			})
 		}
 		
-		//塗りつぶし除外クラス( LightSource )から bitmap._context を抜き出して専用canvasに描写
+		//塗りつぶし除外クラス( LightSource )からcanvasを抜き出して専用canvasに描写
 		static refreshMoldCanvas() {
 			const width = Graphics.width;
 			const height = Graphics.height;
 			const context = this._moldCanvas.getContext('2d');
 			
 			context.save();
+			context.globalCompositeOperation = "source-over";
 			context.clearRect(0,0, width, height);
 			context.fillRect(0, 0, width, height);
 			context.restore();
 			
 			if (this._lightSourceList) {
-				let tempCanvas;
-				let tempContext;
-				let alpha;
-				//最後の一回を必ず描写するため一度余分にループさせてるけど・・・
-				for (let i = 0; i <= this._lightSourceList.length; i++) {
-					const source = i < this._lightSourceList.length ? this._lightSourceList[i] : undefined;
-					//初回は tempContext 作製。 最後もしくはアルファ値が異なる時、context に一度描写して、 tempCanvas をクリア
-					if (tempCanvas === undefined || alpha === undefined || source === undefined || 
-						alpha < source.alpha() || i === this._lightSourceList.length) {
-						if (tempCanvas) {
-							context.save();
-							if (this._shadowLayerBlur > 0) {context.filter = pixelToBlurStr(this._shadowLayerBlur);}
-							context.globalAlpha = alpha;
-							context.globalCompositeOperation = "destination-out";
-							context.drawImage(tempCanvas, 0, 0);
-							context.restore();
-						}
-						tempCanvas = document.createElement('canvas');
-						tempContext = tempCanvas.getContext('2d');
-						alpha = source ? source.alpha() : alpha;
-						tempCanvas.width = width;
-						tempCanvas.height = height;
-					}
-					if (source) this.drawLightSourceImage(tempContext, source);
+				for (let i = 0; i < this._lightSourceList.length; i++) {
+					const lightSource = this._lightSourceList[i];
+					this.drawLightSourceImage(context, lightSource);
 				}
 			}
 		}
@@ -1117,8 +1111,29 @@ Imported.AO_LightingSystem = true;
 			if (lightSource.invertX()) {context.transform(-1, 0, 0, 1, 0, 0);}
 			if (lightSource.invertY()) {context.transform(1, 0, 0, -1, 0, 0);}
 			
-			context.drawImage(	lightSource.canvas(), lightSource.dirtyX(), lightSource.dirtyY(), lightSource.dirtyWidth(), lightSource.dirtyHeight(),
-								- lightSource.anchorPositionX(), - lightSource.anchorPositionY(), lightSource.scaledWidth(), lightSource.scaledHeight());
+			const sx = lightSource.dirtyX();
+			const sy = lightSource.dirtyY();
+			const sw = lightSource.dirtyWidth();
+			const sh = lightSource.dirtyHeight();
+			const dx = - lightSource.anchorPositionX();
+			const dy = - lightSource.anchorPositionY();
+			const dw = lightSource.scaledWidth();
+			const dh = lightSource.scaledHeight();
+			
+			if (lightSource.notOverlay()) {
+				//キャラクター等Y位置を考慮する場合は、一度完全に塗りつぶしてから消す
+				context.globalCompositeOperation = "source-over";
+				context.globalAlpha = 1
+				context.drawImage(lightSource.canvas(), sx, sy, sw, sh, dx, dy, dw, dh);
+				context.globalCompositeOperation = "destination-out";
+				context.globalAlpha = lightSource.alpha();
+				context.drawImage(lightSource.canvas(), sx, sy, sw, sh, dx, dy, dw, dh);
+			} else {
+				context.globalAlpha = lightSource.alpha();
+				context.globalCompositeOperation = "destination-out";
+				context.drawImage(lightSource.canvas(), sx, sy, sw, sh, dx, dy, dw, dh);
+			}
+			
 			context.restore();
 		}
 		
@@ -1137,15 +1152,13 @@ Imported.AO_LightingSystem = true;
 			
 			context.save();
 			context.clearRect(0,0, width, height);
-			
+			context.globalCompositeOperation = "source-over";
 			context.fillStyle = convertArrayToRGBA(this._shadowLayerColor);
 			context.fillRect(0, 0, width, height);
 			context.restore();
 		};
 		
 		static cutShadowLayer() {
-			const width = Graphics.width;
-			const height = Graphics.height;
 			const context = this._shadowLayer.bitmap._context;
 			context.save();
 			context.globalCompositeOperation = "destination-in";
@@ -1166,7 +1179,7 @@ Imported.AO_LightingSystem = true;
 			const context = this._lightLayer.bitmap._context;
 			context.save();
 			context.clearRect(0,0, width, height);
-			
+			context.globalCompositeOperation = "source-over";
 			context.fillStyle = convertArrayToRGBA(this._lightLayerColor);
 			context.fillRect(0, 0, width, height);
 			context.restore();
@@ -1186,6 +1199,7 @@ Imported.AO_LightingSystem = true;
 			this._gameObjectSets = [];
 		}
 		
+		//ゲームオブジェクトと描写スプライトのセットを登録してライトを生成する
 		static registGameObjectSet(gameObject, sprite) {
 			if (!this._gameObjectSets) {this.clearGameObjectSets();}
 			//登録前に描写情報のリセット
@@ -1228,7 +1242,6 @@ Imported.AO_LightingSystem = true;
 			spriteLight.bitmap.addLoadListener(function() {
 				this.registSprite(spriteLight, gameLight.shadowAlpha);
 			}.bind(this));
-			//spriteLight.registSelf();
 		};
 		
 		//これをかかなきゃダメになったのは設計ミスかな･･･ゲームオブジェクト側が対象のライトデータを持たなくなったらスプライトを消す処理。visible = false になると光源リストのリフレッシュでリストから除去
@@ -1245,7 +1258,7 @@ Imported.AO_LightingSystem = true;
 			});
 		};
 		
-		//screenBind の時は何もしない 対をなすスプライトが登録されていない時はマップにバインド それ以外はライトデータ位置参照
+		//screenBind の時は何もしない 対をなすスプライトが登録されていない時はマップにバインド それ以外はスプライト位置参照 アンカー位置はゲームライト参照(アンカーの定義が異なる)
 		static updateGameLightPosition(gameSprite, gameLight) {
 			if (gameLight.screenBind) return;
 			if (!gameSprite) {
@@ -1259,7 +1272,7 @@ Imported.AO_LightingSystem = true;
 			}	
 		}
 		
-		//自動アニメーションのアップデート
+		//自動アニメーションのアップデート。ひどく適当
 		static updateGameLightAnimation(gameLight) {
 			if (gameLight.flick) {
 				if (gameLight.flickWait <= 0) {
@@ -1289,7 +1302,7 @@ Imported.AO_LightingSystem = true;
 			}
 		}
 		
-		//キャラクター方向追従アップデート
+		//キャラクター方向追従アップデート アンカーYの位置が0.5以上と以下で処理を分けてる
 		static updateGameLightFollowDirection(gameObject, gameLight) {
 			if (!gameLight.followDirection) return;
 			if (!gameObject instanceof Game_CharacterBase) return;
@@ -1332,7 +1345,7 @@ Imported.AO_LightingSystem = true;
 			gameLight.rotation = degree * Math.PI / 180;
 		};
 		
-		//スプライト位置取得。アンカー位置の指定がなかればスプライトの中央を取得する。メソットじゃなくオブジェクトにステータスとして位置を持たせるほうがいいかな？←上はそうした！現在未使用のはず
+		//スプライト位置取得。アンカー位置の指定がなかればスプライトの中央を取得する。メソットじゃなくオブジェクトにステータスとして位置を持たせるほうがいいかな？←上はそうした！ここは現在未使用のはず
 		static getGameObjectScreenPosition(gameObject, anchorX, anchorY) {
 			if (anchorX === undefined) anchorX = 0.5;
 			if (anchorY === undefined) anchorY = 0.5;
@@ -1345,6 +1358,7 @@ Imported.AO_LightingSystem = true;
 			return point;
 		}
 		
+		//スプライト取得関数。現在未使用
 		static getGameObjectSprite(gameObject) {
 			if (!this._gameObjectSets) return;
 			for (let i = 0; i < this._gameObjectSets.length; i++) {
@@ -1352,6 +1366,7 @@ Imported.AO_LightingSystem = true;
 			}
 		}
 		
+		//ゲームライトオブジェクト成型
 		static moldGameLight(gameLight) {
 			gameLightKeys.forEach(function(key) {
 				let value = gameLight[key];
@@ -1429,6 +1444,7 @@ Imported.AO_LightingSystem = true;
 			return gameLight;
 		}
 		
+		//位置情報オブジェクト成型なんやねんmotionって･･･
 		static moldMotion(motion) {
 			if (motion === undefined) motion = {};
 			motionKeys.forEach(function(key) {
@@ -1486,6 +1502,20 @@ Imported.AO_LightingSystem = true;
 			return this.parent() && this.parent() instanceof Sprite_Battler;
 		}
 		
+		isCharacter() {
+			return this._targetSprite._character && this._targetSprite._characterName.length > 0;
+		}
+		
+		isLayered() {
+			const character = this._targetSprite._character ? this._targetSprite._character : null;
+			return character && character.isInLayerTile(); 
+		}
+		
+		isInAssignedRegion() {
+			const character = this._targetSprite._character ? this._targetSprite._character : null;
+			return character && assignedRegionId !== 0 && character.regionId() === assignedRegionId;
+		};
+		
 		bitmap() {
 			return this._bitmap;
 		}
@@ -1498,21 +1528,26 @@ Imported.AO_LightingSystem = true;
 			return this._targetSprite.parent;
 		}
 		
+		notOverlay() {
+			const target = this.isMainSprite() ? this.parent() : this._targetSprite;
+			if (Imported.YEP_GridFreeDoodads) return (target instanceof Sprite_Character || target instanceof Sprite_Battler || target instanceof Sprite_Doodad)
+			return (target instanceof Sprite_Character || target instanceof Sprite_Battler);
+		}
+		
 		update() {
 			this.updateBitmap();
-			//this.updateFrame();
 		}
 		
 		updateBitmap() {
 			if (this._bitmap._url !== this._targetSprite.bitmap._url) {
 				const bitmap = this._targetSprite.bitmap;
 				bitmap.addLoadListener(function() {
-					//this._imageData = bitmap._context.getImageData(0, 0, bitmap.width, bitmap.height);
 					this._bitmap = bitmap;
 				}.bind(this));
 			}
 		}
 		
+		//直接参照してるので未使用
 		updateFrame() {
 			if (this._targetSprite) return;
 			this._realFrame = this._targetSprite._realFrame;
@@ -1520,6 +1555,10 @@ Imported.AO_LightingSystem = true;
 		
 		alpha() {
 			if (this._targetSprite.light) return this._alpha * ((255 - (255 - this._targetSprite.opacity) * lightAlphaOpactiyReflectRate) / 255).clamp(0, 1);
+			if (this.isCharacter()) {
+				if (this.isInAssignedRegion()) return 0;
+				if (LightingManager.layeredAutoAlpha && this.isCharacter() && this.isLayered()) return 0;
+			} 
 			return this._alpha * this._targetSprite.opacity / 255;
 		}
 		
@@ -1547,17 +1586,20 @@ Imported.AO_LightingSystem = true;
 			return this.scaleY() < 0;
 		}
 		
-		// vertexData は描写された位置だからそのままだとキャラクター移動時に遅れが発生するのかも
-		screenX() {
-			const sprite = this._targetSprite;
-			return sprite.getGlobalPosition().x - this.scaledWidth() * sprite.anchor.x;
-			//return this._targetSprite.vertexData[0]// - this.dirtyX();
+		//zがundefinedのスプライトでもソート用に値を返す
+		screenZ() {
+			return  this._targetSprite.z !== undefined ? this._targetSprite.z : this.notOverlay() ? 3 : 8;
 		}
 		
-		screenY() {
+		//LightingManager._lightSourceListのsort()用。z座標設定と併せて画面高さを足す事で上側に描写している(いらんかも)
+		sortedScreenY() {
 			const sprite = this._targetSprite;
-			return sprite.getGlobalPosition().y - this.scaledHeight() * sprite.anchor.y;
-			//return this._targetSprite.vertexData[1]// - this.dirtyY();
+			const globalY = sprite.getGlobalPosition().y;
+			return sprite.light ? globalY + Graphics.height * 2 : this.notOverlay() ? globalY : globalY + Graphics.height;
+		}
+		
+		spriteId() {
+			return this._targetSprite.spriteId;
 		}
 		
 		anchorPositionX() {
@@ -1614,7 +1656,7 @@ Imported.AO_LightingSystem = true;
 		$gameScreen.clearGameLights();
 		this.createLightingLayer();
 		_Spriteset_Base_createLowerLayer.apply(this, arguments);
-		this.addShadowLayer();
+		this.addLightingLayers();
 	};
 	
 	const _Spriteset_Map_createLowerLayer = Spriteset_Map.prototype.createLowerLayer;
@@ -1656,9 +1698,9 @@ Imported.AO_LightingSystem = true;
 		LightingManager.registLightingLayer(this._shadowLayer, this._lightLayer);
 	};
 	
-	Spriteset_Base.prototype.addShadowLayer = function() {
+	Spriteset_Base.prototype.addLightingLayers = function() {
 		this.addChild(this._lightLayer);
-	this.addChild(this._shadowLayer);
+		this.addChild(this._shadowLayer);
 	};
 	
 	
@@ -1666,7 +1708,7 @@ Imported.AO_LightingSystem = true;
 	//Game_Object 各種
 	//  影塗りつぶしの除外率設定
 	//  光データの保持
-	//
+	//  Game_CharacterBaseはリージョンの判定を追加
 	//=====================================================================================================================
 	Game_Screen.prototype.clearGameLights = function() {
 		this.gameLights = [];
@@ -1715,6 +1757,11 @@ Imported.AO_LightingSystem = true;
 		return this._shadowAlpha;
 	};
 	
+	//レイヤータイル上のキャラクター光影削除率を自動で設定するため
+	Game_CharacterBase.prototype.isInLayerTile = function() {
+		return $gameMap.tileId(this.x, this.y, 3) || $gameMap.tileId(this.x, this.y, 4) || $gameMap.tileId(this.x, this.y, 5);
+	};
+		
 	const _Game_Player_refresh = Game_Player.prototype.refresh;
 	Game_Player.prototype.refresh = function() {
 		_Game_Player_refresh.apply(this, arguments);
@@ -1797,6 +1844,7 @@ Imported.AO_LightingSystem = true;
 	Game_Event.prototype.clearGameLights = function() {
 		this.gameLights = [];
 	};
+	
 	//注釈からアクティブなページのライト情報をセットアップ
 	Game_Event.prototype.setupCommentGameLights = function() {
 		//<light></light> タグは imageUrl, animationWait, opacity, scaleX, scaleY で記載
@@ -1822,9 +1870,9 @@ Imported.AO_LightingSystem = true;
 	
 	//=====================================================================================================================
 	//Sprite 各種
-	//  生成時やBitmap変更時に LightingManager にスプライトを登録
+	//  生成時やBitmap変更時にLightingManagerにスプライトを登録
 	//  再生終了時は除去
-	//  Game_Object 持ちは Game_Object を登録
+	//  Game_Object持ちはGame_Objectを登録
 	//=====================================================================================================================
 	const _Sprite_Character_updateBitmap = Sprite_Character.prototype.updateBitmap;
 	Sprite_Character.prototype.updateBitmap = function() {
@@ -1832,7 +1880,7 @@ Imported.AO_LightingSystem = true;
 		_Sprite_Character_updateBitmap.apply(this, arguments);
 		if (this._imageChanging) {
 			const shadowAlpha = this._character.shadowAlpha();
-			if (shadowAlpha) {
+			if (shadowAlpha !== undefined && this._characterName.length > 0) {
 				this.bitmap.addLoadListener(function() {
 					LightingManager.registSprite(this, shadowAlpha);
 				}.bind(this));
@@ -1876,7 +1924,7 @@ Imported.AO_LightingSystem = true;
 		_Sprite_Actor_updateBitmap.apply(this, arguments);
 		if (this._imageChanging ) {
 			const shadowAlpha = this._battler.shadowAlpha();
-			if (shadowAlpha) {
+			if (shadowAlpha !== undefined) {
 				this._mainSprite.bitmap.addLoadListener(function() {
 				LightingManager.registSprite(this._mainSprite, shadowAlpha);
 				}.bind(this));
@@ -1900,7 +1948,7 @@ Imported.AO_LightingSystem = true;
 		_Sprite_Enemy_updateBitmap.apply(this, arguments);
 		if (this._imageChanging) {
 			const shadowAlpha = this._battler.shadowAlpha();
-			if (shadowAlpha) {
+			if (shadowAlpha !== undefined) {
 				//animatedSVEnemy対応用にメインスプライトがあればそちらを登録
 				const sprite = this._mainSprite ? this._mainSprite : this;
 				sprite.bitmap.addLoadListener(function() {
@@ -1918,29 +1966,14 @@ Imported.AO_LightingSystem = true;
 		LightingManager.registGameObjectSet(battler, sprite);
 	};
 	
-	//Sprite_Enemyの消去処理は現在保留中。透明だけで対応
-	/*
 	const _Sprite_Enemy_update = Sprite_Enemy.prototype.update;
 	Sprite_Enemy.prototype.update = function() {
-		if (this._effectDuration === 0 && this._enemy && !this._enemy.isAlive()) {
+		if (!this._appeared && !this._enemy.isAlive()) {
 			const sprite = this._mainSprite ? this._mainSprite : this;
 			LightingManager.removeSprite(sprite);
 		};
 		_Sprite_Enemy_update.apply(this, arguments);
 	};
-	*/
-	
-	//この処理だと最後の一匹は消えない時があるんだよね・・・
-	const _Sprite_Enemy_updateEffect = Sprite_Enemy.prototype.updateEffect;
-	Sprite_Enemy.prototype.updateEffect = function() {
-		if (this.isEffecting() && !this._enemy.isAlive()) {
-			const sprite = this._mainSprite ? this._mainSprite : this;
-			LightingManager.removeSprite(sprite);
-		}
-		_Sprite_Enemy_updateEffect.apply(this, arguments);
-	};
-	
-	
 	
 	const _Sprite_Damage_createChildSprite = Sprite_Damage.prototype.createChildSprite;
 	Sprite_Damage.prototype.createChildSprite = function() {
@@ -1997,6 +2030,17 @@ Imported.AO_LightingSystem = true;
 		_Sprite_Balloon_update.apply(this, arguments);
 	};
 	
+	//試験的にYEP_GridFreeDoodadsに対応中。影削除率は0
+	if (Imported.YEP_GridFreeDoodads) {
+		const _Sprite_Doodad_initData = Sprite_Doodad.prototype.initData;
+		Sprite_Doodad.prototype.initData = function() {
+			_Sprite_Doodad_initData.apply(this, arguments);
+			this.bitmap.addLoadListener(function() {
+				LightingManager.registSprite(this, 0);
+			}.bind(this));
+		};
+	}
+	
 	//=====================================================================================================================
 	//Sprite_Light
 	//  光表示用の独自スプライトクラス。ターゲットにGameLightを設定する
@@ -2013,7 +2057,7 @@ Imported.AO_LightingSystem = true;
 			this._filename = "";
 			this.light = true;
 			this._target = null;
-			
+			this.z = 8;
 			this.blendMode = 1;
 			this.anchor.x = 0.5;
 			this.anchor.y = 0.5;
@@ -2029,12 +2073,11 @@ Imported.AO_LightingSystem = true;
 			this._animationWait = 1;
 			this._pattern = 0;
 		}
-		//ここで一括のセットアップを出来るようにしたい！！
+		
 		setup(filename, animationWait) {
 			this.bitmap = ImageManager.loadBitmap(lightImageDirectory, filename, 0, true);
 			this.setFilename(filename);
 			this.setAnimationWait(animationWait);
-			
 		}
 		
 		setFilename(filename) {
@@ -2052,7 +2095,6 @@ Imported.AO_LightingSystem = true;
 					else if (matchStr.match(/\[NR\]/)) {this._reverseLoop = false;}
 				}.bind(this))
 			}
-			
 		}
 		
 		setSize(maxRow, maxCol) {
@@ -2084,7 +2126,6 @@ Imported.AO_LightingSystem = true;
 		targetUpdate() {
 			if (!this._target) return;
 			const target = this._target;
-			//これもちょっとかえるかも？ターゲットポジションの関係でオブジェクトの形をかえるかもしれないから
 			this._randomFrame = target.randomFrame;
 			this.x = target.position.x + target.shift.x;
 			this.y = target.position.y + target.shift.y;
@@ -2138,13 +2179,13 @@ Imported.AO_LightingSystem = true;
 			return this.bitmap ? this.bitmap.height / this._maxRow : 1;
 		}
 		
+		//直接登録も可能にしたけど未使用
 		registSelf(shadowAlpha) {
 			shadowAlpha = shadowAlpha === undefined && this._target ? this._target.shadowAlpha : shadowAlpha; 
 			this.bitmap.addLoadListener(function() {
 				LightingManager.registSprite(this, shadowAlpha);
 			}.bind(this));
 		}
-		
 	}
 
 })();
