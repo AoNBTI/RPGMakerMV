@@ -3,20 +3,11 @@
 //=============================================================================
 // Copyright (c) 2020 AO
 // This software is released under the MIT License.
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files　(the "Software"),
-// to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
-// and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
-// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 //
 // コードの一部はMITライセンスのプラグイン製作者様のコードを参考にしています
 // I appreciate great plugin creater's work.
 // This License Notice described below
-// Triacontane様 (C)2016 Triacontane
+// (C)2016 Triacontane
 // 
 /*
 2020/2/8 ver 1.00 初版
@@ -109,7 +100,7 @@
  * @type number
  * @min 0
  * @max 100 
- * @default 0
+ * @default 50
  * @desc 光源用スプライトの不透明度を減少させた時に光影レイヤーの削除率を下げる割合(%)
  *
  * @param 光レイヤー成型適応
@@ -140,7 +131,7 @@
  * @default true
  * @desc　エネミーバトラーが戦闘不能の時はそのライトを消去するか(true/false)
  *
- * @param キャラクター光影削除リージョン
+ * @param キャラクター光影削除不可リージョン
  * @type number
  * @min 0
  * @max 255
@@ -183,10 +174,7 @@
  * <光スプライト用画像作成Tips>
  * デフォルトでは光スプライトは"加算合成"です(ライトに与えるパラメータで変更可)
  * 光スプライト用画像のアルファ値を参照して影を削る仕組みですから
- * 理論上真っ黒な画像を用意すれば透明な光を描く事が可能です
- * 小さいけれど強い透明な光を放つ画像を用意したい場合は、光源を描いたら
- * 黒で透明にしたい画像上の位置を広く塗りつぶせば
- * 塗りつぶした範囲分影が削られる仕組みとなります
+ * 真っ黒な画像を用意すれば透明な光を描く事が可能です
  *
  * ========= アニメーションの光影レイヤー削除の個別設定 =========
  * 全てのアニメーションをレイヤーによる塗りつぶしから除外したくない場合は
@@ -251,6 +239,63 @@
  *
  * 例)エネミーの光影削除率を80%に設定
  * <shadowAlphaB:80>
+ *
+ * ========= プラグインパラメータ解説 =========
+ * 以下のプラグインパラメータは
+ * 影レイヤーおよび光レイヤーの塗りつぶしから目的のスプライトが除外される率(0-100)%です
+ * 100%に設定すると塗りつぶしから完全に除外されます
+ * <キャラクター光影除外率>
+ * <バトラー光影除外率>
+ * <アニメーション光影除外率>
+ * <ダメージポップ光影除外率>
+ * <ステートアイコン光影除外率>
+ * <ステートオーバーレイ光影除外率>
+ * <サイドビュー武器光影除外率>
+ * <フキダシ光影除外率>
+ * <ライトスプライト光影除外率>
+ * キャラクター・イベント･フォロワー・バトラーはメモ欄に記載がある場合
+ * そちらの数値が優先されます
+ *
+ * バトラーとアニメーションの二つのスプライトは
+ * 以下のプラグインパラメータをtrueに設定することで
+ * 個別に除外を設定する必要がなくなり
+ * 全てのスプライトにプラグインパラメータで設定した除外率が適応されます
+ * <バトラー光影除外設定>
+ * <アニメーション光影除外率>
+ *
+ * 光描写用のライトスプライトは光影除外率の他に
+ * スプライトの不透明度により、影レイヤーをどの程度削除するかを
+ * 以下のプラグインパラメータで指定可能です
+ * <ライトスプライト不透明度反映率>
+ * この値は<ライトスプライト光影除外率>と乗算される0-100の%です
+ * 即ち<ライトスプライト光影除外率>が100でも<ライトスプライト不透明度反映率>が0の時
+ * スプライトの不透明度が0であれば、光は描写されず影レイヤーは削られません
+ * <ライトスプライト不透明度反映率>が50であった場合は
+ * スプライトの不透明度が0であっても<ライトスプライト光影除外率>の50%で
+ * 影レイヤーが切り取られることになります
+ *
+ * 以下ののパラメータでtrueを設定することにより
+ * 光レイヤーはスプライトによる切り取りを行わないよう設定することが可能です
+ * <光レイヤー成型適応>
+ * trueに設定すると光レイヤーによる色調変更は
+ * 光影除外設定を無視してスプライト上に描写されます
+ *
+ * 光レイヤーおよび影レイヤーのブレンドモードは以下のパラメータにより
+ * 変更することも可能です
+ * <影レイヤーブレンドモード>
+ * <光レイヤーブレンドモード>
+ * 影レイヤーのブレンドモードはデフォルトでは乗算
+ * 光レイヤーのブレンドモードはデフォルトではスクリーンに設定されてます
+ *
+ * エネミーが戦闘不能のとき、エネミーに表示されたライトを消去したくない場合は
+ * 以下のパラメータをfalseに設定してください
+ * <エネミーライト戦闘不能同期>
+ *
+ * キャラクターが建物等の裏に移動した際に
+ * キャラクターの光影除外設定を解除したい場合は以下のパラメータを利用してください
+ * <キャラクター光影削除不可リージョン>
+ * このパラメータで指定したリージョンに乗ったキャラクター・イベントは
+ * 一時的に光影除外率が0になり影レイヤーで塗りつぶされます
  *
  * ========= プラグインコマンド解説 =========
  * <画面の色調変化コマンド>
@@ -408,7 +453,9 @@
  * "randomFrame":true/false ファイル名アニメーションのコマを不定期に飛ばすか
  *
  * "flick":true/false 自動フリックアニメーションの有無
+ * "scaleFlick":true/false 自動フリックアニメーション中にスケールが0になる事を許可するか
  * "swing":true/false 自動スイングアニメーションの有無
+ * "swingMaxScaleRate":小数(1以上) 自動スイングアニメーション中の最大スケール
  * "followDirection":true/false キャラクタの向き変更を光に反映するか
  * "screenBind":true/false 光を画面に固定するか
  *
@@ -425,7 +472,7 @@
 /*
 コピーペースト用Json文字列
 {
-	"imageUrl":"light","animationWait":8,"randomFrame":false,"flick":false,"swing":false,"followDirection":false,"screenBind":false,
+	"imageUrl":"light","animationWait":8,"randomFrame":false,"flick":false,"scaleFlick":false,"swing":false,"followDirection":false,"screenBind":false,
 	"position":{"x":0,"y":0},"shift":{"x":0,"y":0},"blendMode":1,"opacity":255,"spriteAnchor":{"x":0.5,"y":0.5},"anchor":{"x":0.5,"y":0.5},
 	"rotation":0,"scale":{"x":1.0,"y":1.0}
 }
@@ -494,7 +541,7 @@ Imported.AO_LightingSystem = true;
 	//const layeredAutoAlpha = getArgBoolean(parameters["キャラクター光影削除率自動調節"]);
 	const layeredAutoAlpha = false;
 	
-	const assignedRegionId = getArgNumber(parameters["キャラクター光影削除リージョン"]).clamp(0, 255);
+	const assignedRegionId = getArgNumber(parameters["キャラクター光影削除不可リージョン"]).clamp(0, 255);
 	
 	const shadowLayerColor = [0,0,0,0];
 	const lightLayerColor = [100,100,100,0];
