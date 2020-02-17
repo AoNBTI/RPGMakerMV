@@ -13,6 +13,7 @@
 2020/2/8 ver 1.00 初版
 2020/2/9 ver 1.01 YEP_X_AnimatedSVEnemies.js対応用スケール感知を追加
 2020/2/11 ver 1.02 refreshMoldCanvas() をリファクタリングして軽量化 y座標ソート対応　ブラーパラメータの廃止
+2020/2/17 ver 1.03 save時の仕様変更
 */
 
 /*:
@@ -138,7 +139,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.02
+ * @help AO_LightingSystem.js ver1.03
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  *
@@ -476,35 +477,7 @@
 	"position":{"x":0,"y":0},"shift":{"x":0,"y":0},"blendMode":1,"opacity":255,"spriteAnchor":{"x":0.5,"y":0.5},"anchor":{"x":0.5,"y":0.5},
 	"rotation":0,"scale":{"x":1.0,"y":1.0}
 }
-/*
-<TODO>
-あー建物の裏側とか歩いた時に相当まずいことになるか･･･どうやって解決しようか･･･
-	現実的なところではリージョンで設定する？←リージョンでの指定はおっけー自動設置はちょっと見送りかなぁ･･･
-スプライトアニメーション周りとかの処理を最適化して、もうちょっと軽くしたいなぁ･･･
-スプライトピクチャも光扱いにできるようにしてみるか。優先度設定プラグイン用に。
-GameLightにアニメーションを設定できるパラメータは持たせたつもりだけどどうしようか･･･
-サンプル用png画像つくらなくっちゃ･･･上手く塗ればレインボーができんじゃね？
-光ってる(範囲内にいる)イベント・プレイヤー・バトラーに自動でステータスが付くようにできたりするだろうか･･･なんに使うかわからんが
-<保留>
-ブラーが機能してないけど、機能させると画面周囲もぶれるか･･･？ブラーをかける場所にもよるんだけど・・・削りのブラーに統合して対応しようか･･･←登録スプライトが多くなるととんでもない重さになるぞ！パラメータ削除済み
-<済み扱い>
-レジストされたエネミースプライトの消去処理が？　影削除が残るときがある。どうしたら綺麗に処理できるか･･･←たぶんできた！
-イベントスプライトのYソートでの描写が一部上手くいってない！なんでだろう！←screenY()の問題！要継続チェック！！
-ソートと影キャンバスの削り手法を変えたらY位置を意識した削りに変えられるか？←思いつかないから思いついたら！←出来たかもしれないけど自信ない！
-Sprite_Light にzを指定したらちらつきが直った。アニメーションと同じ8でいいのかな？← sprite.z が undefined の sprite は結構あった！　競合しないように関数の戻り値で規定
-いい加減プ・・・プラグインコマンド・・・つくれ・・・←最低限は･･･
-バトラーが死んだらライトも消すかどうか←エネミーだけはプラグインパラメータで指定できるようにした！アクターはいらんだろたぶん
-ライトを一つずつ消去できるコマンドつくる？←つくったつもり！
-イベント・プレイヤー・バトラー・バトルバックに光をつける←戦闘背景の仕様が微妙だけど
-バトルバックにオートでライトをつけれないだろうか･･･マップのメモ欄あたりで？いやいや普通にプラグインコマンドで戦闘画面のライト設定できたらそれでよくない？←とりあえずスクリプトコマンドで表示させてみた
-ゲームスクリーンのライトデータ配列をバトル用にしてしまおうか？←やってみたけど大丈夫かな？
-影の軽減処理を適応するキャラクターとしないキャラクターの整理！←たぶんできた！でも他のスプライトも整理しないと←だいたいOK？
-アニメーション名の末尾でライティング扱いするか設定できるように ←たぶんOK！
-画像ファイル名からアニメーションのコマ数と逆再生を設定できるようにする ←たぶんOK！
-トーン変更中に移動すると・・・？←たぶんFix
-Game_Objectにデータ保存かな？←しました！たぶんセーブロードも大丈夫。Game_Screen だけは即消ししてるけど
-あー余計な事思いついた･･･加算レイヤーも欲しくなってきた････←作っちゃった！！
- */
+*/
 
 var Imported = Imported || {};
 Imported.AO_LightingSystem = true;
@@ -971,12 +944,18 @@ Imported.AO_LightingSystem = true;
 		}
 		
 		static initMembers() {
-			if (this._shadowLayerColor === undefined) {this._shadowLayerColor = shadowLayerColor;}
+			if (this._shadowLayerColor === undefined) {
+				if ($gameScreen.shadowLayerColor()) {this._shadowLayerColor = $gameScreen.shadowLayerColor();}
+				else {this._shadowLayerColor = shadowLayerColor;}
+			}
 			if (this._shadowLayerBlendMode === undefined) {this._shadowLayerBlendMode = shadowLayerBlendMode;}
 			if (this._shadowDuration === undefined) {this._shadowDuration = 0;}
 			if (this._shadowLayerTargetColor === undefined) {this._shadowLayerTargetColor = this._shadowLayerColor;}
 			
-			if (this._lightLayerColor === undefined) {this._lightLayerColor = lightLayerColor;}
+			if (this._lightLayerColor === undefined) {
+				if ($gameScreen.lightLayerColor()) {this._lightLayerColor = $gameScreen.lightLayerColor();}
+				else {this._lightLayerColor = lightLayerColor;}
+			}
 			if (this._lightLayerBlendMode === undefined) {this._lightLayerBlendMode = lightLayerBlendMode;}
 			if (this._lightDuration === undefined) {this._lightDuration = 0;}
 			if (this._lightLayerTargetColor === undefined) {this._lightLayerTargetColor = this._lightLayerColor;}
@@ -1515,6 +1494,10 @@ Imported.AO_LightingSystem = true;
 			return motion;
 		}
 		
+		static onBeforeSave() {
+			$gameScreen.setLightingColors(this._shadowLayerTargetColor, this._lightLayerTargetColor);
+		}
+		
 	}
 	
 	//=====================================================================================================================
@@ -1750,13 +1733,30 @@ Imported.AO_LightingSystem = true;
 		this.addChild(this._shadowLayer);
 	};
 	
-	
+	const _Game_System_onBeforeSave = Game_System.prototype.onBeforeSave;
+	Game_System.prototype.onBeforeSave = function() {
+		_Game_System_onBeforeSave.apply(this, arguments);
+		LightingManager.onBeforeSave();
+	};
 	//=====================================================================================================================
 	//Game_Object 各種
 	//  影塗りつぶしの除外率設定
 	//  光データの保持
 	//  Game_CharacterBaseはリージョンの判定を追加
 	//=====================================================================================================================
+	Game_Screen.prototype.setLightingColors = function(shadowLayerColor, lightLayerColor) {
+		this._shadowLayerColor = shadowLayerColor;
+		this._lightLayerColor = lightLayerColor;
+	};
+	
+	Game_Screen.prototype.shadowLayerColor = function() {
+		return this._shadowLayerColor;
+	};
+	
+	Game_Screen.prototype.lightLayerColor = function() {
+		return this._lightLayerColor;
+	};
+	
 	Game_Screen.prototype.clearGameLights = function() {
 		this.gameLights = [];
 	};
