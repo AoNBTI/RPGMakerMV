@@ -140,7 +140,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.03
+ * @help AO_LightingSystem.js ver1.031
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  *
@@ -1716,7 +1716,7 @@ Imported.AO_LightingSystem = true;
 		const height = Graphics.height;
 		let bitmap = new Bitmap();
 		bitmap.resize(width, height);
-        this._shadowLayer = new Sprite_Base();
+		this._shadowLayer = new Sprite_Base();
 		this._shadowLayer.bitmap = bitmap;
 		this._shadowLayer.blendMode = shadowLayerBlendMode;
 		
@@ -1733,7 +1733,10 @@ Imported.AO_LightingSystem = true;
 		this.addChild(this._lightLayer);
 		this.addChild(this._shadowLayer);
 	};
-	
+	//=====================================================================================================================
+	//Game_System
+	//  セーブ前に画面塗りつぶし情報をGame_Screenにコピー
+	//=====================================================================================================================
 	const _Game_System_onBeforeSave = Game_System.prototype.onBeforeSave;
 	Game_System.prototype.onBeforeSave = function() {
 		_Game_System_onBeforeSave.apply(this, arguments);
