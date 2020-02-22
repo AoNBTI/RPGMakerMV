@@ -15,6 +15,7 @@
 2020/2/11 ver 1.02 refreshMoldCanvas() をリファクタリングして軽量化 y座標ソート対応　ブラーパラメータの廃止
 2020/2/17 ver 1.03 save時の仕様変更
 2020/2/17 ver 1.031 ヘルプ記載修正
+2020/2/22 ver 1.04 画面のシェイクとズームに対応
 */
 
 /*:
@@ -140,7 +141,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.031
+ * @help AO_LightingSystem.js ver1.04
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  *
@@ -1131,8 +1132,7 @@ Imported.AO_LightingSystem = true;
 			if (!lightSource.visible()) return;
 			context.save();
 			
-			const sourcePosition = lightSource.globalPosition();
-			context.translate(sourcePosition.x, sourcePosition.y);
+			context.translate(lightSource.screenX(), lightSource.screenY());
 			context.rotate(lightSource.rotation());
 			
 			if (lightSource.invertX()) {context.transform(-1, 0, 0, 1, 0, 0);}
@@ -1142,6 +1142,7 @@ Imported.AO_LightingSystem = true;
 			const sy = lightSource.dirtyY();
 			const sw = lightSource.dirtyWidth();
 			const sh = lightSource.dirtyHeight();
+			//ズーム対応にはdx,dy,dw,dhの独自補正が必要か?いやsorcepositonだけでいけるはず
 			const dx = - lightSource.anchorPositionX();
 			const dy = - lightSource.anchorPositionY();
 			const dw = lightSource.scaledWidth();
@@ -1294,8 +1295,8 @@ Imported.AO_LightingSystem = true;
 			} else {
 				const frameWidth = gameSprite._realFrame.width ? gameSprite._realFrame.width : $gameMap.tileWidth();
 				const frameHeight = gameSprite._realFrame.height ? gameSprite._realFrame.height : $gameMap.tileHeight();
-				gameLight.position.x = gameSprite.getGlobalPosition().x - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
-				gameLight.position.y = gameSprite.getGlobalPosition().y - (frameHeight * gameSprite.scale.y) * (gameSprite.anchor.y - gameLight.anchor.y);
+				gameLight.position.x = gameSprite.x - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
+				gameLight.position.y = gameSprite.y - (frameHeight * gameSprite.scale.y) * (gameSprite.anchor.y - gameLight.anchor.y);
 			}	
 		}
 		
@@ -1537,6 +1538,22 @@ Imported.AO_LightingSystem = true;
 			return this._targetSprite._character && this._targetSprite._characterName.length > 0;
 		}
 		
+		isAnimation() {
+			return this.parent() instanceof Sprite_Animation;
+		}
+		
+		isStateIcon() {
+			return this._targetSprite instanceof Sprite_StateIcon;
+		}
+		
+		isWeapon() {
+			return this._targetSprite instanceof Sprite_Weapon;
+		}
+		
+		isDamage() {
+			return this.parent() instanceof Sprite_Damage;
+		}
+		
 		isLayered() {
 			const character = this._targetSprite._character ? this._targetSprite._character : null;
 			return character && character.isInLayerTile(); 
@@ -1546,6 +1563,11 @@ Imported.AO_LightingSystem = true;
 			const character = this._targetSprite._character ? this._targetSprite._character : null;
 			return character && assignedRegionId !== 0 && character.regionId() === assignedRegionId;
 		};
+		
+		positionTargetSprite() {
+			if (this.isMainSprite() || this.isAnimation() || this.isDamage() || this.isStateIcon() || this.isWeapon()) return this.parent();
+			return this._targetSprite;
+		}
 		
 		bitmap() {
 			return this._bitmap;
@@ -1615,6 +1637,18 @@ Imported.AO_LightingSystem = true;
 		
 		invertY() {
 			return this.scaleY() < 0;
+		}
+		
+		screenX() {
+			const target = this.positionTargetSprite();
+			if (this.isAnimation() || this.isDamage() || this.isStateIcon() || this.isWeapon()) return target.x + this._targetSprite.x;
+			return target.x;
+		}
+		
+		screenY() {
+			const target = this.positionTargetSprite();
+			if (this.isAnimation() || this.isDamage() || this.isStateIcon() || this.isWeapon()) return target.y + this._targetSprite.y;
+			return target.y;
 		}
 		
 		//zがundefinedのスプライトでもソート用に値を返す
