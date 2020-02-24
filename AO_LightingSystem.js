@@ -16,6 +16,7 @@
 2020/2/17 ver 1.03 save時の仕様変更
 2020/2/17 ver 1.031 ヘルプ記載修正
 2020/2/22 ver 1.04 画面のシェイクとズームに対応
+2020/2/24 ver 1.041 Sprite_Animation 内の cellSprite が正常にマネージャからリムーブされていなかった問題の修正およびLightingManagerへのレジストを見直し
 */
 
 /*:
@@ -141,9 +142,11 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.04
+ * @help AO_LightingSystem.js ver1.041
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
+ * RPGツクールMV ver1.6系にのみ対応です
+ * This plugin requires RPGMakerMV ver 1.61 or higher
  *
  * プラグインパラメータで"光影除外率"を100に設定したオブジェクトは
  * このプラグインによる色調変更による塗りつぶしから除外されます
@@ -1010,7 +1013,10 @@ Imported.AO_LightingSystem = true;
 			if (bitmap && bitmap.isReady()) {
 				let inculde = false;
 				for (let i = 0; i < this._lightSourceList.length; i++) {
-					if (sprite === this._lightSourceList[i]._targetSprite) {inculde = true;}
+					if (sprite === this._lightSourceList[i]._targetSprite) {
+						inculde = true;
+						return;
+					}
 				}
 				if (!inculde) {
 					const lightSource = new LightSource(sprite);
@@ -1980,27 +1986,33 @@ Imported.AO_LightingSystem = true;
 		LightingManager.registGameObjectSet(character, this);
 	};
 	
-	const _Sprite_Animation_updateCellSprite = Sprite_Animation.prototype.updateCellSprite;
-	Sprite_Animation.prototype.updateCellSprite = function(sprite, cell) {
-		_Sprite_Animation_updateCellSprite.apply(this, arguments);
-		if (sprite.visible && this.shadowAlpha()) {
-			LightingManager.registSprite(sprite, animationAlpha);
-		}
-	};
-	
 	Sprite_Animation.prototype.shadowAlpha = function() {
 		return animationShadowAlphaAll || this._animation.name.match(/\[light\]/i);
 	};
 	
-	const _Sprite_Animation_updateMain = Sprite_Animation.prototype.updateMain;
-	Sprite_Animation.prototype.updateMain = function() {
-		_Sprite_Animation_updateMain.apply(this, arguments);
-		if (!this.isPlaying()) {
-			this._cellSprites.forEach((cellSprite) => {
-				LightingManager.removeSprite(cellSprite);
-			});
+
+	const _Sprite_Animation_remove = Sprite_Animation.prototype.remove;
+	Sprite_Animation.prototype.remove = function() {
+		_Sprite_Animation_remove.apply(this, arguments);
+		this.removeCellSprites();
+	};
+	
+	Sprite_Animation.prototype.removeCellSprites = function() {
+		this._cellSprites.forEach((sprite) => {
+			LightingManager.removeSprite(sprite);
+			sprite.registedInLigitingManager = false;
+		});
+	};
+	
+	const _Sprite_Animation_updateCellSprite = Sprite_Animation.prototype.updateCellSprite;
+	Sprite_Animation.prototype.updateCellSprite = function(sprite, cell) {
+		_Sprite_Animation_updateCellSprite.apply(this, arguments);
+		if (sprite.visible && this.shadowAlpha() && !sprite.registedInLigitingManager) {
+			LightingManager.registSprite(sprite, animationAlpha);
+			sprite.registedInLigitingManager = true;
 		}
 	};
+	
 	
 	const _Sprite_Actor_updateBitmap = Sprite_Actor.prototype.updateBitmap;
 	Sprite_Actor.prototype.updateBitmap = function() {
@@ -2080,38 +2092,56 @@ Imported.AO_LightingSystem = true;
 	const _Sprite_StateIcon_updateIcon = Sprite_StateIcon.prototype.updateIcon;
 	Sprite_StateIcon.prototype.updateIcon = function() {
 		_Sprite_StateIcon_updateIcon.apply(this, arguments);
-		if (this._iconIndex === 0) {LightingManager.removeSprite(this);}
-		else {LightingManager.registSprite(this, stateIconAlpha);}
+		if (this._iconIndex === 0 && this.registedInLigitingManager) {
+			LightingManager.removeSprite(this);
+			this.registedInLigitingManager = false;
+		} else if (!this.registedInLigitingManager){
+			LightingManager.registSprite(this, stateIconAlpha);
+			this.registedInLigitingManager = true;
+		}
 	};
 	
 	const _Sprite_StateOverlay_updatePattern = Sprite_StateOverlay.prototype.updatePattern;
 	Sprite_StateOverlay.prototype.updatePattern = function() {
 		_Sprite_StateOverlay_updatePattern.apply(this, arguments);
-		if (this._overlayIndex > 0) {LightingManager.registSprite(this, stateOverlayAlpha);}
-		else {LightingManager.removeSprite(this)}
+		if (this._overlayIndex > 0 && !this.registedInLigitingManager) {
+			LightingManager.registSprite(this, stateOverlayAlpha);
+			this.registedInLigitingManager = true;
+		} else if (this._overlayIndex <= 0 && this.registedInLigitingManager){
+			LightingManager.removeSprite(this);
+			this.registedInLigitingManager = false;
+		}
 	};
 	
 	const _Sprite_Weapon_setup = Sprite_Weapon.prototype.setup;
 	Sprite_Weapon.prototype.setup = function(weaponImageId) {
 		_Sprite_Weapon_setup.apply(this, arguments);
 		LightingManager.registSprite(this, weaponAlpha);
+		this.registedInLigitingManager = true;
 	};
 	
 	const _Sprite_Weapon_updatePattern = Sprite_Weapon.prototype.updatePattern;
 	Sprite_Weapon.prototype.updatePattern = function() {
 		_Sprite_Weapon_updatePattern.apply(this, arguments);
-		if (!this.isPlaying()) {LightingManager.removeSprite(this);}
+		if (!this.isPlaying() && this.registedInLigitingManager) {
+			LightingManager.removeSprite(this);
+			this.registedInLigitingManager = false;
+		}
 	};
 	
 	const _Sprite_Balloon_setup = Sprite_Balloon.prototype.setup;
 	Sprite_Balloon.prototype.setup = function() {
 		_Sprite_Balloon_setup.apply(this, arguments);
 		LightingManager.registSprite(this, balloonAlpha);
+		this.registedInLigitingManager = true;
 	};
 	//これは正直どうなのか･･･残りフレームが1になった時にライティングマネージャから除去
 	const _Sprite_Balloon_update = Sprite_Balloon.prototype.update;
 	Sprite_Balloon.prototype.update = function() {
-		if (this._duration === 1) {LightingManager.removeSprite(this);}
+		if (this._duration === 1) {
+			LightingManager.removeSprite(this);
+			this.registedInLigitingManager = false;
+		}
 		_Sprite_Balloon_update.apply(this, arguments);
 	};
 	
@@ -2122,6 +2152,7 @@ Imported.AO_LightingSystem = true;
 			_Sprite_Doodad_initData.apply(this, arguments);
 			this.bitmap.addLoadListener(function() {
 				LightingManager.registSprite(this, 0);
+				this.registedInLigitingManager = true;
 			}.bind(this));
 		};
 	}

@@ -35,6 +35,7 @@
 /*
 2020/2/13 ver 1.00 初版
 2020/2/15 ver 1.01 ユーティリティ関数の不具合修正
+2020/2/22 ver 1.02 テストプレイ以外でも表示スプライトの作成が行われていた不具合の修正
 */
 (function() {
 	'use strict';
@@ -137,9 +138,11 @@
 	//  位置表示用スプライトの作成
 	//===========================================================
 	Spriteset_Base.prototype.createPositionDisplaySprite = function() {
-		const sprite = new Sprite_Position();
-		this.addChild(sprite);
-		$gameTemp.setPositionDisplaySprite(sprite);
+		if ($gameTemp.isPlaytest()) {
+			const sprite = new Sprite_Position();
+			this.addChild(sprite);
+			$gameTemp.setPositionDisplaySprite(sprite);	
+		}
 	};
 	
 	const _Spriteset_Map_initialize = Spriteset_Map.prototype.initialize;
