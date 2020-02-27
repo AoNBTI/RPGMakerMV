@@ -268,7 +268,7 @@
  * 個別に除外を設定する必要がなくなり
  * 全てのスプライトにプラグインパラメータで設定した除外率が適応されます
  * <バトラー光影除外設定>
- * <アニメーション光影除外率>
+ * <アニメーション光影除外設定>
  *
  * 光描写用のライトスプライトは光影除外率の他に
  * スプライトの不透明度により、影レイヤーをどの程度削除するかを
@@ -751,7 +751,6 @@ Imported.AO_LightingSystem = true;
 		if (target) {
 			if (target.gameLights === undefined) {target.gameLights = [];}
 			target.gameLights.push(strJsonToLightData(strJson));
-			console.log(target);
 		}
 	};
 	
