@@ -18,6 +18,7 @@
 2020/2/22 ver 1.04 画面のシェイクとズームに対応
 2020/2/24 ver 1.041 Sprite_Animation 内の cellSprite が正常にマネージャからリムーブされていなかった問題の修正およびLightingManagerへのレジストを見直し
 2020/2/24 ver 1.042 影レイヤーの削りにノイズが描写されてしまう時があったのを修正
+2020/2/29 ver 1.043 タイルセット画像を指定したキャラクターに光影削除率を設定しても正しく反映されていなかった問題の修正
 */
 
 /*:
@@ -143,7 +144,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.042
+ * @help AO_LightingSystem.js ver1.043
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  * RPGツクールMV ver1.6系にのみ対応です
@@ -1092,12 +1093,9 @@ Imported.AO_LightingSystem = true;
 			if (!this._lightSourceList) return;
 			
 			//アクティブでないライトソースを除去
-			for (let i = this._lightSourceList.length - 1; i > 1; i--) {
-				const lightSource = this._lightSourceList[i];
-				if (!lightSource.parent() || !lightSource.bitmap() || (lightSource.bitmap().isReady() && lightSource.bitmap().width <= 1)) {
-					this._lightSourceList.splice(i, 0);
-				}
-			}
+			this._lightSourceList = this._lightSourceList.filter((lightSource) => {
+				return lightSource.active();
+			});
 
 			//マップ上のソートと同様のY位置ソート 優先度z>y>id
 			this._lightSourceList.sort((sourceA, sourceB) => {
@@ -1599,6 +1597,10 @@ Imported.AO_LightingSystem = true;
 			return (target instanceof Sprite_Character || target instanceof Sprite_Battler);
 		}
 		
+		active() {
+			return this.parent() && this.bitmap();
+		}
+		
 		update() {
 			this.updateBitmap();
 		}
@@ -1977,7 +1979,7 @@ Imported.AO_LightingSystem = true;
 		_Sprite_Character_updateBitmap.apply(this, arguments);
 		if (this._imageChanging) {
 			const shadowAlpha = this._character.shadowAlpha();
-			if (shadowAlpha !== undefined && this._characterName.length > 0) {
+			if (shadowAlpha !== undefined && (this._characterName.length > 0) || this._tileId) {
 				this.bitmap.addLoadListener(function() {
 					LightingManager.registSprite(this, shadowAlpha);
 				}.bind(this));
