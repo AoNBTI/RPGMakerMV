@@ -19,6 +19,7 @@
 2020/2/24 ver 1.041 Sprite_Animation 内の cellSprite が正常にマネージャからリムーブされていなかった問題の修正およびLightingManagerへのレジストを見直し
 2020/2/24 ver 1.042 影レイヤーの削りにノイズが描写されてしまう時があったのを修正
 2020/2/29 ver 1.043 タイルセット画像を指定したキャラクターに光影削除率を設定しても正しく反映されていなかった問題の修正
+2020/2/29 ver 1.044 YEP_X_AnimatedSVEnemies使用時の不具合修正、フロントビュー戦闘時の不具合修正 
 */
 
 /*:
@@ -144,7 +145,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.043
+ * @help AO_LightingSystem.js ver1.044
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  * RPGツクールMV ver1.6系にのみ対応です
@@ -487,7 +488,7 @@
 */
 
 /*
-DirectAttacEffect.jsとの競合を発見
+DirectAttacEffect.jsの残像表示との競合を発見
 対処検討中です･･･できそうならしようかな
 */
 
@@ -496,6 +497,9 @@ Imported.AO_LightingSystem = true;
 
 (function() {
 	'use strict';
+	
+	const importedAnimatedSVEnemies = Imported.YEP_X_AnimatedSVEnemies;
+	
 	const pluginName = 'AO_LightingSystem';
 	const parameters = PluginManager.parameters(pluginName);
 	
@@ -1998,6 +2002,12 @@ Imported.AO_LightingSystem = true;
 		return animationShadowAlphaAll || this._animation.name.match(/\[light\]/i);
 	};
 	
+	Sprite_Animation.prototype.needRegist = function(sprite) {
+		if (!$gameSystem.isSideView() && this._target && this._target.parent && this._target.parent instanceof Sprite_Actor) return false;
+		return sprite.visible && this.shadowAlpha() && !sprite.registedInLigitingManager;
+				
+	};
+	
 
 	const _Sprite_Animation_remove = Sprite_Animation.prototype.remove;
 	Sprite_Animation.prototype.remove = function() {
@@ -2015,7 +2025,7 @@ Imported.AO_LightingSystem = true;
 	const _Sprite_Animation_updateCellSprite = Sprite_Animation.prototype.updateCellSprite;
 	Sprite_Animation.prototype.updateCellSprite = function(sprite, cell) {
 		_Sprite_Animation_updateCellSprite.apply(this, arguments);
-		if (sprite.visible && this.shadowAlpha() && !sprite.registedInLigitingManager) {
+		if (this.needRegist(sprite)) {
 			LightingManager.registSprite(sprite, animationAlpha);
 			sprite.registedInLigitingManager = true;
 		}
@@ -2055,7 +2065,7 @@ Imported.AO_LightingSystem = true;
 			const shadowAlpha = this._battler.shadowAlpha();
 			if (shadowAlpha !== undefined) {
 				//animatedSVEnemy対応用にメインスプライトがあればそちらを登録
-				const sprite = this._mainSprite ? this._mainSprite : this;
+				const sprite = importedAnimatedSVEnemies && this._enemy.hasSVBattler() ? this._mainSprite : this;
 				sprite.bitmap.addLoadListener(function() {
 					LightingManager.registSprite(sprite, shadowAlpha);
 				});
@@ -2067,14 +2077,14 @@ Imported.AO_LightingSystem = true;
 	const _Sprite_Enemy_setBattler = Sprite_Enemy.prototype.setBattler;
 	Sprite_Enemy.prototype.setBattler = function(battler) {
 		_Sprite_Enemy_setBattler.apply(this, arguments);
-		const sprite = this._mainSprite ? this._mainSprite : this;
+		const sprite = importedAnimatedSVEnemies && this._enemy.hasSVBattler() ? this._mainSprite : this;
 		LightingManager.registGameObjectSet(battler, sprite);
 	};
 	
 	const _Sprite_Enemy_update = Sprite_Enemy.prototype.update;
 	Sprite_Enemy.prototype.update = function() {
 		if (!this._appeared && !this._enemy.isAlive()) {
-			const sprite = this._mainSprite ? this._mainSprite : this;
+			const sprite = importedAnimatedSVEnemies && this._enemy.hasSVBattler() ? this._mainSprite : this;
 			LightingManager.removeSprite(sprite);
 		};
 		_Sprite_Enemy_update.apply(this, arguments);
@@ -2112,7 +2122,7 @@ Imported.AO_LightingSystem = true;
 	const _Sprite_StateOverlay_updatePattern = Sprite_StateOverlay.prototype.updatePattern;
 	Sprite_StateOverlay.prototype.updatePattern = function() {
 		_Sprite_StateOverlay_updatePattern.apply(this, arguments);
-		if (this._overlayIndex > 0 && !this.registedInLigitingManager) {
+		if ($gameSystem.isSideView() && this._overlayIndex > 0 && !this.registedInLigitingManager) {
 			LightingManager.registSprite(this, stateOverlayAlpha);
 			this.registedInLigitingManager = true;
 		} else if (this._overlayIndex <= 0 && this.registedInLigitingManager){
@@ -2124,7 +2134,7 @@ Imported.AO_LightingSystem = true;
 	const _Sprite_Weapon_setup = Sprite_Weapon.prototype.setup;
 	Sprite_Weapon.prototype.setup = function(weaponImageId) {
 		_Sprite_Weapon_setup.apply(this, arguments);
-		LightingManager.registSprite(this, weaponAlpha);
+		if ($gameSystem.isSideView()) {LightingManager.registSprite(this, weaponAlpha);}
 		this.registedInLigitingManager = true;
 	};
 	
