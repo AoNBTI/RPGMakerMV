@@ -19,7 +19,8 @@
 2020/2/24 ver 1.041 Sprite_Animation 内の cellSprite が正常にマネージャからリムーブされていなかった問題の修正およびLightingManagerへのレジストを見直し
 2020/2/24 ver 1.042 影レイヤーの削りにノイズが描写されてしまう時があったのを修正
 2020/2/29 ver 1.043 タイルセット画像を指定したキャラクターに光影削除率を設定しても正しく反映されていなかった問題の修正
-2020/2/29 ver 1.044 YEP_X_AnimatedSVEnemies使用時の不具合修正、フロントビュー戦闘時の不具合修正 
+2020/3/1 ver 1.044 YEP_X_AnimatedSVEnemies使用時の不具合修正、フロントビュー戦闘時の不具合修正 
+2020/3/2 ver 1.045 画面シェイク時に画面両端の影レイヤ表示がずれないよう修正 
 */
 
 /*:
@@ -145,7 +146,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.044
+ * @help AO_LightingSystem.js ver1.045
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  * RPGツクールMV ver1.6系にのみ対応です
@@ -645,12 +646,12 @@ Imported.AO_LightingSystem = true;
 	//マップ座標でマップにbindする時に使おうかな
 	function convertMapToScreenX(mapX) {
 		const tw = $gameMap.tileWidth();
-		return Math.round($gameMap.adjustX(mapX * tw) + tw / 2);
+		return Math.floor($gameMap.adjustX(mapX * tw) + tw / 2);
 	}
 	
 	function convertMapToScreenY(mapY) {
 		const th = $gameMap.tileHeight();
-		return Math.round($gameMap.adjustY(mapY * th) + th / 2);
+		return Math.floor($gameMap.adjustY(mapY * th) + th / 2);
 	}
 	
 	//引数文字列配列は imageUrl, animationWait, opacity, scaleX, scaleY で記載
@@ -1058,6 +1059,14 @@ Imported.AO_LightingSystem = true;
 			this.refreshMoldCanvas();
 			this.refreshShadowLayer();
 			this.refreshLightLayer();
+			
+			this.updateLightingLayersPosition();
+		}
+		
+		static updateLightingLayersPosition() {
+			const screenShake = $gameScreen.shake();
+			this._lightLayer.x = - screenShake;
+			this._shadowLayer.x = - screenShake;
 		}
 		
 		static updateColor() {
@@ -1146,7 +1155,7 @@ Imported.AO_LightingSystem = true;
 			if (!lightSource.visible()) return;
 			context.save();
 			
-			context.translate(Math.round(lightSource.screenX()), Math.round(lightSource.screenY()));
+			context.translate(Math.floor(lightSource.screenX()), Math.floor(lightSource.screenY()));
 			context.rotate(lightSource.rotation());
 			
 			if (lightSource.invertX()) {context.transform(-1, 0, 0, 1, 0, 0);}
@@ -1309,7 +1318,7 @@ Imported.AO_LightingSystem = true;
 			} else {
 				const frameWidth = gameSprite._realFrame.width ? gameSprite._realFrame.width : $gameMap.tileWidth();
 				const frameHeight = gameSprite._realFrame.height ? gameSprite._realFrame.height : $gameMap.tileHeight();
-				gameLight.position.x = gameSprite.x - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
+				gameLight.position.x = gameSprite.x + $gameScreen.shake() - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
 				gameLight.position.y = gameSprite.y - (frameHeight * gameSprite.scale.y) * (gameSprite.anchor.y - gameLight.anchor.y);
 			}	
 		}
@@ -1659,8 +1668,8 @@ Imported.AO_LightingSystem = true;
 		
 		screenX() {
 			const target = this.positionTargetSprite();
-			if (this.isAnimation() || this.isDamage() || this.isStateIcon() || this.isWeapon()) return target.x + this._targetSprite.x;
-			return target.x;
+			if (this.isAnimation() || this.isDamage() || this.isStateIcon() || this.isWeapon()) return target.x + this._targetSprite.x + $gameScreen.shake();
+			return target.x + $gameScreen.shake();
 		}
 		
 		screenY() {
@@ -1686,11 +1695,11 @@ Imported.AO_LightingSystem = true;
 		}
 		
 		anchorPositionX() {
-			return Math.round(this.scaledWidth() * this._targetSprite.anchor.x);
+			return Math.floor(this.scaledWidth() * this._targetSprite.anchor.x);
 		}
 		
 		anchorPositionY() {
-			return Math.round(this.scaledHeight() * this._targetSprite.anchor.y);
+			return Math.floor(this.scaledHeight() * this._targetSprite.anchor.y);
 		}
 		
 		
@@ -1719,11 +1728,11 @@ Imported.AO_LightingSystem = true;
 		}
 		
 		scaledWidth() {
-			return Math.abs(Math.round(this.dirtyWidth() * this.scaleX()));
+			return Math.abs(Math.floor(this.dirtyWidth() * this.scaleX()));
 		}
 		
 		scaledHeight() {
-			return Math.abs(Math.round(this.dirtyHeight() * this.scaleY()));
+			return Math.abs(Math.floor(this.dirtyHeight() * this.scaleY()));
 		}
 		
 	}
