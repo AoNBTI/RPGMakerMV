@@ -22,7 +22,8 @@
  * @type number
  * @max 64
  * @min 0
- * @help parallax mapping通行判定作製用等に。
+ * @help AO_PositionDisplay.js ver1.021
+ * parallax mapping通行判定作製用等に。
  *
  * テストプレイ時のみクリックした画面位置を
  * マップ座標に変換して表示します
@@ -36,6 +37,7 @@
 2020/2/13 ver 1.00 初版
 2020/2/15 ver 1.01 ユーティリティ関数の不具合修正
 2020/2/22 ver 1.02 テストプレイ以外でも表示スプライトの作成が行われていた不具合の修正
+2020/3/3 ver 1.021 ドラッグは座標表示を変更しないように変更
 */
 (function() {
 	'use strict';
@@ -162,7 +164,12 @@
 	//  マップ位置の保持
 	//===========================================================
 	Game_Temp.prototype.updatePositionDisplay = function() {
-		if (this.isPlaytest() && TouchInput.isPressed()) this._positionDisplaySprite.refreshPosition();
+		if (TouchInput.isReleased()) {
+			this._touchInputWasPressed = false;
+		} else if (this.isPlaytest() && !this._touchInputWasPressed && TouchInput.isPressed()) {
+			this._positionDisplaySprite.refreshPosition();
+			this._touchInputWasPressed = true;
+		}
 	};
 	
 	Game_Temp.prototype.setPositionDisplaySprite = function(sprite) {
