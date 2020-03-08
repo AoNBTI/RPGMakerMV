@@ -21,6 +21,7 @@
 2020/2/29 ver 1.043 タイルセット画像を指定したキャラクターに光影削除率を設定しても正しく反映されていなかった問題の修正
 2020/3/1 ver 1.044 YEP_X_AnimatedSVEnemies使用時の不具合修正、フロントビュー戦闘時の不具合修正 
 2020/3/2 ver 1.045 画面シェイク時に画面両端の影レイヤ表示がずれないよう修正 
+2020/3/8 ver 1.046 画像アニメーションのrow,col指定が条件によりずれる不具合を修正 
 */
 
 /*:
@@ -146,7 +147,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.045
+ * @help AO_LightingSystem.js ver1.046
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  * RPGツクールMV ver1.6系にのみ対応です
@@ -1318,7 +1319,7 @@ Imported.AO_LightingSystem = true;
 			} else {
 				const frameWidth = gameSprite._realFrame.width ? gameSprite._realFrame.width : $gameMap.tileWidth();
 				const frameHeight = gameSprite._realFrame.height ? gameSprite._realFrame.height : $gameMap.tileHeight();
-				gameLight.position.x = gameSprite.x + $gameScreen.shake() - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
+				gameLight.position.x = gameSprite.x + $gameScreen.shake() / 2 - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
 				gameLight.position.y = gameSprite.y - (frameHeight * gameSprite.scale.y) * (gameSprite.anchor.y - gameLight.anchor.y);
 			}	
 		}
@@ -2307,8 +2308,8 @@ Imported.AO_LightingSystem = true;
 		}
 		
 		updateFrame() {
-			const col = this._pattern % this._maxCol;
-			const row = (this._pattern - col) / this._maxRow;
+			const col = Math.floor(this._pattern % this._maxCol);
+			const row = this._pattern < this._maxCol ? 0 : Math.floor(this._pattern / this._maxCol);
 			const patternWidth = this.patternWidth();
 			const patternHeight = this.patternHeight();
 			this.setFrame(col * patternWidth, row * patternHeight, patternWidth, patternHeight);
