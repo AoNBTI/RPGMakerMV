@@ -21,7 +21,8 @@
 2020/2/29 ver 1.043 タイルセット画像を指定したキャラクターに光影削除率を設定しても正しく反映されていなかった問題の修正
 2020/3/1 ver 1.044 YEP_X_AnimatedSVEnemies使用時の不具合修正、フロントビュー戦闘時の不具合修正 
 2020/3/2 ver 1.045 画面シェイク時に画面両端の影レイヤ表示がずれないよう修正 
-2020/3/8 ver 1.046 画像アニメーションのrow,col指定が条件によりずれる不具合を修正 
+2020/3/8 ver 1.046 画像アニメーションのrow,col指定が条件によりずれる不具合を修正
+2020/3/15 ver 1.047 マネージャーへのレジストをbitmapのロードに依存しないよう仕様変更
 */
 
 /*:
@@ -147,7 +148,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.046
+ * @help AO_LightingSystem.js ver1.047
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  * RPGツクールMV ver1.6系にのみ対応です
@@ -492,6 +493,7 @@
 /*
 DirectAttacEffect.jsの残像表示との競合を発見
 対処検討中です･･･できそうならしようかな
+レジストの設定を検討しないと
 */
 
 var Imported = Imported || {};
@@ -1023,7 +1025,7 @@ Imported.AO_LightingSystem = true;
 		static registSprite(sprite, alpha) {
 			if (!this._lightSourceList) {this.clearLightSource();}
 			const bitmap = sprite.bitmap;
-			if (bitmap && bitmap.isReady()) {
+			if (bitmap) {
 				let inculde = false;
 				for (let i = 0; i < this._lightSourceList.length; i++) {
 					if (sprite === this._lightSourceList[i]._targetSprite) {
@@ -1031,12 +1033,10 @@ Imported.AO_LightingSystem = true;
 						return;
 					}
 				}
-				if (!inculde) {
-					const lightSource = new LightSource(sprite);
+				const lightSource = new LightSource(sprite);
 					alpha = alpha ? alpha : 0;
 					lightSource.setAlpha(alpha);
 					this._lightSourceList.push(lightSource);
-				}
 			}
 		}
 		
