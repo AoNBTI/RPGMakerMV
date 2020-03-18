@@ -8,6 +8,7 @@
 // I appreciate great plugin creater's work.
 /*
 2020/3/15 初版ver1.00
+2020/3/18 ver1.001 bitmapのロード終了前にSunLightエフェクトの描写が始まると描写位置がずれる事がある問題の修正
 */
 /*:
  * @plugindesc 天候画面エフェクトを追加
@@ -38,7 +39,7 @@
  * @min 0
  * @type number
  *
- * @help AO_WeatherEffect ver 1.00
+ * @help AO_WeatherEffect ver 1.001
  * デフォルトの天候とは別の仕組みを持つ
  * 天候の画面エフェクトを追加します
  *
@@ -1447,6 +1448,7 @@ Imported.AO_WeatherEffect = true;
 		}
 				
 		update() {
+			if (!this.bitmapIsReady()) return;
 			super.update();
 			this.updateFade();
 			this._animationCount++;
@@ -1466,6 +1468,10 @@ Imported.AO_WeatherEffect = true;
 				}
 			}
 			
+		}
+		
+		bitmapIsReady() {
+			return this.bitmap && this.bitmap.isReady();
 		}
 		
 		updateVisiblity() {
