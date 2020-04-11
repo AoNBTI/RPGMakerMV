@@ -23,6 +23,7 @@
 2020/3/2 ver 1.045 画面シェイク時に画面両端の影レイヤ表示がずれないよう修正 
 2020/3/8 ver 1.046 画像アニメーションのrow,col指定が条件によりずれる不具合を修正
 2020/3/15 ver 1.047 マネージャーへのレジストをbitmapのロードに依存しないよう仕様変更
+2020/4/10 ver 1.048 Battlerに付随するライトの位置が正しく表示されていなかった問題を修正。ヘルプの記載間違いを修正
 */
 
 /*:
@@ -148,7 +149,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.047
+ * @help AO_LightingSystem.js ver1.048
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  * RPGツクールMV ver1.6系にのみ対応です
@@ -347,9 +348,9 @@
  * 不透明度は0-255の整数値、拡大率はともに0-100の整数値です
  *
  * 例)一人目のフォロワーにlight[3x1].pngを光スプライトとして生成して1コマ8フレームで再生
- * AOLSターゲットライト作製 light[3x1] -2 8 255 200 100
+ * AOLSターゲットライト作製 -2 light[3x1] 8 255 200 100
  * 例)エネミー1番にlight.pngを光スプライトとして生成(画像名アニメーション無し)
- * AOLS_MAKE_TARGET_LIGHT light 1 1 200 150 150
+ * AOLS_MAKE_TARGET_LIGHT 1 light 1 200 150 150
  *
  * <イベント・キャラクター・フォロワー･アクター・エネミーのライトを全て消すコマンド>
  * AOLS_CLEAR_TARGET_LIGHTS ターゲット番号
@@ -413,7 +414,7 @@
  * マップ画面で上記プラグインコマンドを実行しておくことで
  * 戦闘に入ると同時に予約されたライトを表示します
  * 例)画面上400,0の位置にlight[3x3][NR]png画像を3倍に拡大してライトとして予約
- * AOLSバトルバックライト予約 400 0 light[3x3][NR] 8 0 350 100
+ * AOLSバトルバックライト予約 400 0 light[3x3][NR] 8 255 300 300
  *
  * <戦闘背景へ表示するライトの予約を全て取り消すコマンド>
  * AOLS_CLEAR_RESERVED_BATTLEBACK_LIGHTS
@@ -488,12 +489,6 @@
 	"position":{"x":0,"y":0},"shift":{"x":0,"y":0},"blendMode":1,"opacity":255,"spriteAnchor":{"x":0.5,"y":0.5},"anchor":{"x":0.5,"y":0.5},
 	"rotation":0,"scale":{"x":1.0,"y":1.0}
 }
-*/
-
-/*
-DirectAttacEffect.jsの残像表示との競合を発見
-対処検討中です･･･できそうならしようかな
-レジストの設定を検討しないと
 */
 
 var Imported = Imported || {};
@@ -1319,8 +1314,14 @@ Imported.AO_LightingSystem = true;
 			} else {
 				const frameWidth = gameSprite._realFrame.width ? gameSprite._realFrame.width : $gameMap.tileWidth();
 				const frameHeight = gameSprite._realFrame.height ? gameSprite._realFrame.height : $gameMap.tileHeight();
-				gameLight.position.x = gameSprite.x + $gameScreen.shake() / 2 - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
-				gameLight.position.y = gameSprite.y - (frameHeight * gameSprite.scale.y) * (gameSprite.anchor.y - gameLight.anchor.y);
+				let spriteX = gameSprite.x;
+				let spriteY = gameSprite.y;
+				if (gameSprite.parent instanceof Sprite_Battler) {
+					spriteX += gameSprite.parent.x;
+					spriteY += gameSprite.parent.y;
+				}
+				gameLight.position.x = spriteX + $gameScreen.shake() / 2 - (frameWidth * gameSprite.scale.x) * (gameSprite.anchor.x - gameLight.anchor.x);
+				gameLight.position.y = spriteY - (frameHeight * gameSprite.scale.y) * (gameSprite.anchor.y - gameLight.anchor.y);
 			}	
 		}
 		
