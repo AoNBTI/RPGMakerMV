@@ -9,7 +9,7 @@
 //
 /*
 2020/4/30 初版ver1.00
-2020/5/3 ver1.001 ヘルプの制御文字記載を修正
+2020/5/3 ver1.001 ヘルプの制御文字記載を修正。テキストアラインコマンドの機能が停止していた問題の修正
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -458,7 +458,7 @@ Imported.AO_BalloonWindow = true;
 		if (controlWait >= 0) {
 			balloonWindowState.displayFrame = controlWait;
 		} else {
-			const text = convertEscapeCharacters(balloonWindowState.text, true);
+			const text = convertEscapeCharacters(balloonWindowState.text, true, true);
 			const textWait = text.length * singleCharacterWait
 			balloonWindowState.displayFrame = textWait > minmumDisplayFrame ? textWait : minmumDisplayFrame;
 		}	
@@ -572,7 +572,7 @@ Imported.AO_BalloonWindow = true;
 		return fontSize + 8;
 	}
 	
-	function convertEscapeCharacters(text, forSize) {
+	function convertEscapeCharacters(text, forSize, forWait) {
 		text = text.replace(/\\/g, '\x1b');
 		text = text.replace(/\x1b\x1b/g, '\\');
 		text = text.replace(/\x1bV\[(\d+)\]/gi, function() {
@@ -610,9 +610,11 @@ Imported.AO_BalloonWindow = true;
 			text = text.replace(/\x1bCWCR;/gi, "");
 			text = text.replace(/\x1bWUP;/gi, "");
 			text = text.replace(/\x1bWUN;/gi, "");
-			text = text.replace(/\x1bCTAL;/gi, "");
-			text = text.replace(/\x1bCTAC;/gi, "");
-			text = text.replace(/\x1bCTAR;/gi, "");
+			if (forWait) {
+				text = text.replace(/\x1bCTAL;/gi, "");
+				text = text.replace(/\x1bCTAC;/gi, "");
+				text = text.replace(/\x1bCTAR;/gi, "");
+			}
 			text = text.replace(/\x1bSPSE\[([^\]]+)\]/gi, "");
 			text = text.replace(/\x1bSSEV\[(\d+)\]/gi, "");
 			text = text.replace(/\x1bSSEPC\[(\d+)\]/gi, "");
@@ -1416,7 +1418,7 @@ Imported.AO_BalloonWindow = true;
 			if (controlWait >= 0) {
 				balloonWindowState.displayFrame = controlWait;
 			} else {
-				const text = convertEscapeCharacters(balloonWindowState.text, true);
+				const text = convertEscapeCharacters(balloonWindowState.text, true, true);
 				const textWait = text.length * singleCharacterWait
 				balloonWindowState.displayFrame = textWait > minmumDisplayFrame ? textWait : minmumDisplayFrame;	
 			}
@@ -1802,7 +1804,7 @@ Imported.AO_BalloonWindow = true;
 				textState = copyTextState(textState);
 				textState.forSize = true;
 			}
-			textState.text = convertEscapeCharacters(textState.text, forSize);
+			textState.text = convertEscapeCharacters(textState.text, forSize, false);
 			textState.height = this.calcTextHeight(textState, false);
 			let newWidth = 0;
 			while (textState.index < textState.text.length) {
