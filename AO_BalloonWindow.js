@@ -7,7 +7,10 @@
 // コードの一部はMITライセンスのプラグイン製作者様のコードを参考にしています
 // I appreciate great plugin creater's work.
 //
-
+/*
+2020/4/30 初版ver1.00
+2020/5/3 ver1.001 ヘルプの制御文字記載を修正
+*/
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
 * @author AO
@@ -154,7 +157,7 @@
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置4
 *
-* @help AO_BalloonWindow.js ver1.00
+* @help AO_BalloonWindow.js ver1.001
 * フキダシウィンドウ風スプライトを表示可能にします
 * 表示されるウィンドウは自動で表示・消去され
 * 一文字ずつの表示はされません
