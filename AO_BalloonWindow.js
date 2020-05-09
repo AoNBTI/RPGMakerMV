@@ -10,6 +10,7 @@
 /*
 2020/4/30 初版ver1.00
 2020/5/3 ver1.001 ヘルプの制御文字記載を修正。テキストアラインコマンドの機能が停止していた問題の修正
+2020/5/9 ver1.002 名前からターゲット番号を取得する方法の変更。ステートに沈黙状態の定義を追加
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -157,7 +158,7 @@
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置4
 *
-* @help AO_BalloonWindow.js ver1.001
+* @help AO_BalloonWindow.js ver1.002
 * フキダシウィンドウ風スプライトを表示可能にします
 * 表示されるウィンドウは自動で表示・消去され
 * 一文字ずつの表示はされません
@@ -188,7 +189,7 @@
 * 指定がない場合は記載したイベントが対象となります
 *
 * "<targetId:ターゲット番号>"
-* ターゲット番号によるターゲット指定
+* ターゲット番号によるターゲット指定(MAP画面)
 * 0:記載したイベント
 * -1:プレイヤー
 * -2:一番目のフォロワー
@@ -198,6 +199,17 @@
 * 1:ID1のイベント
 * 2:ID2のイベント
 * 正の整数はイベントをIDで指定します
+*
+* ターゲット番号によるターゲット指定(戦闘画面)
+* 0:行動中のバトラー
+* -1:先頭のパーティメンバー
+* -2:一番目のパーティメンバー
+* -3:二番目のパーティメンバー
+* マイナス以降の数字を大きくする事で以降のパーティメンバーを
+* 指定できます
+* 1:一番目の敵
+* 2:二番目の敵
+* 正の整数は敵を並びで指定します
 *
 * "<targetName:名前>"
 * 名前部分にキャラクター・イベント名を記載する事で
@@ -218,6 +230,8 @@
 * <文章内記載例:1番のキューにハロルドの台詞を追加>
 * <targetName:ハロルド><queueId:1>
 * 俺が勇者ハロルドだ！
+* ※名前で敵バトラーを指定する場合で同名の敵が複数居る場合は
+*  末尾に全角で"Ａ"や"Ｂ"を記載する必要があります
 *
 * プラグインコマンド:RESET_BALLOONWINDOW
 * 文章の表示を通常のコマンドに戻します
@@ -314,6 +328,10 @@
 * <bwbOffsets:top,left,right,bottom>
 * の記述で指定することが可能です
 *
+* =============ステートのメモ欄解説=============
+* ステートのメモ欄に"<CantSpeak>"と記載する事で
+* そのステートにかかったバトラーに対するウィンドウ表示を無効化できます
+*
 * ライセンスはMIT
 * 改変歓迎です
 *
@@ -357,7 +375,7 @@ Imported.AO_BalloonWindow = true;
 	const clearQueueInBattleEnd = getArgBoolean(parameters["戦闘終了時キュークリア"]);
 	const clearBattlerBalloonWindowsInEveryBattle = getArgBoolean(parameters["戦闘終了時バトラークリア"]);
 	const clearQueueInMapChanged = getArgBoolean(parameters["マップ移動時キュークリア"]);
-	const resetOverrid = getArgBoolean(parameters["コマンドオーバーライド自動解除"]);
+	const resetOverride = getArgBoolean(parameters["コマンドオーバーライド自動解除"]);
 	const partyMemberPosition01 = parameters["フロントビュー用位置1"] ? JSON.parse(parameters["フロントビュー用位置1"]) : {"x":400, "y":400};
 	const partyMemberPosition02 = parameters["フロントビュー用位置2"] ? JSON.parse(parameters["フロントビュー用位置2"]) : {"x":400, "y":400};
 	const partyMemberPosition03 = parameters["フロントビュー用位置3"] ? JSON.parse(parameters["フロントビュー用位置3"]) : {"x":400, "y":400};
@@ -497,9 +515,6 @@ Imported.AO_BalloonWindow = true;
 			balloonWindowState.nextPopWait = getArgNumber(arr[1]);
 		}
 	}
-	
-	//#FFFFFFを捕まえる正規表現/#([a-z0-9]{6})/gi
-	//rgba(0,0,0,0.0)を捕まえる正規表現/rgba\(((\d{1,3},\s*){3})([1-9][0-9]*|0)(\.[0-9]+)?\)/gi
 	
 	function textState() {
 		return {
@@ -672,6 +687,42 @@ Imported.AO_BalloonWindow = true;
 		if (dataObject) return dataObject.meta;
 	}
 	
+	function getNameTargetNumber(name) {
+		if ($gameParty.inBattle()) {
+			const actorId = $gameParty.members().findIndex((actor) => {
+				return actor.name() === name;
+			});
+			if (actorId >= 0) return - (actorId + 1);
+			const enemyId = $gameTroop.members().findIndex((enemy) => {
+				return enemy.name() === name;
+			});
+			if (enemyId >= 0) return enemyId + 1;
+		} else {
+			const partyMemberId = $gameParty.members().findIndex((member) => {
+				return member.name() === name;
+			});
+			if (partyMemberId === 0) return -1;
+			if (partyMemberId > 0 && $gamePlayer.followers().isVisible())  return - (partyMemberId + 1);
+			const mapEvents = $dataMap.events.filter((event) => {
+				if (event) return event.name === name;
+			})
+			if (mapEvents.length) return mapEvents[0].id;
+		}
+	}
+	
+	//=====================================================================================================================
+	// Game_Battler
+	//  沈黙状態を定義
+	//=====================================================================================================================
+	Game_Battler.prototype.canSpeak = function() {
+		let canSpeak = true;
+		this.states().forEach((state) => {
+		//ステートのメモ欄に"<CantSpeak>"を記載するといわゆる沈黙扱い
+			if (state.meta.CantSpeak) canSpeak = false;
+		});
+		return this.isAlive() && canSpeak;
+	};
+	
 	//=====================================================================================================================
 	// Game_Temp
 	//  スクリプトコマンドの保持
@@ -776,7 +827,7 @@ Imported.AO_BalloonWindow = true;
 	Game_Interpreter.prototype.command101 = function() {
 		if (BalloonWindowManager.command101IsOverrided()) {
 			this.commandBalloonWindow();
-			if (resetOverrid) BalloonWindowManager.approveCommand101();
+			if (resetOverride) BalloonWindowManager.approveCommand101();
 			return false;
 		} else {
 			return _Game_Interpreter_command101.apply(this, arguments);
@@ -824,7 +875,7 @@ Imported.AO_BalloonWindow = true;
 		let nameArr;
 		while (nameArr = nameRe.exec(text)) {
 			text = text.replace(nameArr[0], '');
-			targetId = BalloonWindowManager.nameTargetNumber(nameArr[1]);
+			targetId = getNameTargetNumber(nameArr[1]);
 		}
 		const idRe = new RegExp(targetIdTag, "gi");
 		let idArr;
@@ -2435,7 +2486,6 @@ Imported.AO_BalloonWindow = true;
 			context.fillStyle = color;
 			context.lineWidth = lineWidth;
 			context.strokeStyle = lineColor;
-			//let r = Math.floor(width / 2);
 			let r = Math.min(width, height) / 2;
 			let rRate = 4 / 5;
 			
@@ -2447,7 +2497,6 @@ Imported.AO_BalloonWindow = true;
 				y += r * 2 + lineWidth;
 				r = r * rRate;
 				r = r > (this.height - y) / 2 ? (this.height - y) / 2 : r;
-				//r = r * rRate;
 			}
 			
 			context.restore();
