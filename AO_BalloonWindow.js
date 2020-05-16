@@ -11,6 +11,7 @@
 2020/4/30 初版ver1.00
 2020/5/3 ver1.001 ヘルプの制御文字記載を修正。テキストアラインコマンドの機能が停止していた問題の修正
 2020/5/9 ver1.002 名前からターゲット番号を取得する方法の変更。ステートに沈黙状態の定義を追加
+2020/5/9 ver1.003 プラグインパラメーターにウィンドウの最大移動速度を追加
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -142,6 +143,12 @@
 * @default true
 * @desc 表示コマンド実行後に自動で通常コマンドに戻すか
 *
+* @param ウィンドウ最大移動速度
+* @type number
+* @min 0
+* @default 5
+* @desc 最大で1フレームあたり何ピクセル移動できるか
+*
 * @param フロントビュー用位置1
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置1s
@@ -158,10 +165,12 @@
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置4
 *
-* @help AO_BalloonWindow.js ver1.002
+* @help AO_BalloonWindow.js ver1.003
 * フキダシウィンドウ風スプライトを表示可能にします
 * 表示されるウィンドウは自動で表示・消去され
 * 一文字ずつの表示はされません
+* このプラグインの利用にはRPGツクールver1.6.2以上が必要です
+* This plugin requires RPGMakerMVver1.6.2 or heigher
 *
 * =============プラグインコマンド解説=============
 * プラグインコマンド:SET_BALLOONWINDOW
@@ -376,6 +385,7 @@ Imported.AO_BalloonWindow = true;
 	const clearBattlerBalloonWindowsInEveryBattle = getArgBoolean(parameters["戦闘終了時バトラークリア"]);
 	const clearQueueInMapChanged = getArgBoolean(parameters["マップ移動時キュークリア"]);
 	const resetOverride = getArgBoolean(parameters["コマンドオーバーライド自動解除"]);
+	const maxWindowSpeed = getArgNumber(parameters["ウィンドウ最大移動速度"]);
 	const partyMemberPosition01 = parameters["フロントビュー用位置1"] ? JSON.parse(parameters["フロントビュー用位置1"]) : {"x":400, "y":400};
 	const partyMemberPosition02 = parameters["フロントビュー用位置2"] ? JSON.parse(parameters["フロントビュー用位置2"]) : {"x":400, "y":400};
 	const partyMemberPosition03 = parameters["フロントビュー用位置3"] ? JSON.parse(parameters["フロントビュー用位置3"]) : {"x":400, "y":400};
@@ -407,8 +417,6 @@ Imported.AO_BalloonWindow = true;
 	
 	const defaultSePitch = 100;
 	const defaultSePan = 0
-	
-	const maxWindowSpeed = 3;
 	
 	const targetIdStrings = "targetId";
 	const targetNameStrings = "targetName";
@@ -712,8 +720,15 @@ Imported.AO_BalloonWindow = true;
 	
 	//=====================================================================================================================
 	// Game_Battler
-	//  沈黙状態を定義
+	//  直接テキストを追加するメソッドと沈黙状態を定義
 	//=====================================================================================================================
+	Game_Battler.prototype.createBalloonWindow = function(text) {
+		if (this.balloonWindowStates === undefined) {
+			this.balloonWindowStates = [];
+		}
+		this.balloonWindowStates.push(balloonWindowState(text));
+	};
+	
 	Game_Battler.prototype.canSpeak = function() {
 		let canSpeak = true;
 		this.states().forEach((state) => {
@@ -748,15 +763,6 @@ Imported.AO_BalloonWindow = true;
 	
 	Game_Temp.prototype.clearBattleBalloonWindowQueue = function(queueIndex) {
 		$gameSystem._battleBalloonWindowQueues[queueIndex] = [];
-	}
-	
-	//ベクトルACとベクトルBDの交点を求める。四点はA,B,C,Dで四角形を作る四点。辺をつなぐ順番にすること！
-	function getIntersection(pointA, pointB, pointC, pointD) {
-		const sizeA = ((pointD.x - pointB.x) * (pointA.y - pointB.y) - (pointD.y - pointB.y) * (pointA.x - pointB.x)) / 2;
-		const sizeB = ((pointD.x - pointB.x) * (pointB.y - pointC.y) - (pointD.y - pointB.y) * (pointB.x - pointC.y)) / 2;
-		const x = pointA.x + (pointC.x - pointA.x) * sizeA / (sizeA + sizeB);
-		const y = pointA.y + (pointC.y - pointA.y) * sizeA / (sizeA + sizeB);
-		return new Point(x, y);
 	}
 	
 	//=====================================================================================================================
@@ -1237,7 +1243,7 @@ Imported.AO_BalloonWindow = true;
 		static gameObjectScreenTop(gameObject) {
 			const sprite = this.gameObjectSprite(gameObject);
 			if (sprite) {
-				const rectangle = sprite.getBounds();
+				const rectangle = sprite.getBounds(false);
 				return new Point(rectangle.x + rectangle.width / 2, rectangle.top);
 			} else {
 				return null;
