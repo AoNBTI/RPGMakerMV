@@ -435,8 +435,8 @@ Imported.AO_BalloonWindow = true;
 	}
 	
 	function getArgBoolean(arg) {
-		arg = getArgString(arg, true);
-		return arg === "T" || arg === "TRUE" || arg === "ON";
+		arg = typeof arg !== "boolean" ? getArgString(arg, true) : arg;
+		return arg === "T" || arg === "TRUE" || arg === "ON" || arg === true;
 	}
 	
 	function degreeToRadian(degree) {

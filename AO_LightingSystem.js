@@ -12,7 +12,7 @@
 /*
 2020/2/8 ver 1.00 初版
 2020/2/9 ver 1.01 YEP_X_AnimatedSVEnemies.js対応用スケール感知を追加
-2020/2/11 ver 1.02 refreshMoldCanvas() をリファクタリングして軽量化 y座標ソート対応　ブラーパラメータの廃止
+2020/2/11 ver 1.02 refreshMoldCanvas() をリファクタリングして軽量化 y座標ソート対応 ブラーパラメータの廃止
 2020/2/17 ver 1.03 save時の仕様変更
 2020/2/17 ver 1.031 ヘルプ記載修正
 2020/2/22 ver 1.04 画面のシェイクとズームに対応
@@ -24,6 +24,7 @@
 2020/3/8 ver 1.046 画像アニメーションのrow,col指定が条件によりずれる不具合を修正
 2020/3/15 ver 1.047 マネージャーへのレジストをbitmapのロードに依存しないよう仕様変更
 2020/4/10 ver 1.048 Battlerに付随するライトの位置が正しく表示されていなかった問題を修正。ヘルプの記載間違いを修正
+2020/5/16 ver 1.049 ユーテリティ関数の不具合を修正
 */
 
 /*:
@@ -140,7 +141,7 @@
  * @on はい
  * @off いいえ
  * @default true
- * @desc　エネミーバトラーが戦闘不能の時はそのライトを消去するか(true/false)
+ * @desc エネミーバトラーが戦闘不能の時はそのライトを消去するか(true/false)
  *
  * @param キャラクター光影削除不可リージョン
  * @type number
@@ -149,7 +150,7 @@
  * @default 0
  * @desc キャラクターの光影削除率を自動で0にするリージョンID
  *
- * @help AO_LightingSystem.js ver1.048
+ * @help AO_LightingSystem.js ver1.049
  * キャラクター・イベント・アニメーション等を色調変更による塗りつぶしから
  * 除外することが可能なライティングプラグインです
  * RPGツクールMV ver1.6系にのみ対応です
@@ -377,7 +378,7 @@
  * AOLSマップライト作製 8 4 light[5x2] 14 150 120 100
  *
  * <イベントに紐付け無しでマップに生成したライトを消去するコマンド>
- *　AOLS_CLEAR_MAP_LIGHTS
+ * AOLS_CLEAR_MAP_LIGHTS
  * AOLSマップライト消去
  *
  * <イベントに紐付け無しでマップに生成したライトを一つ消去するコマンド>
@@ -446,7 +447,7 @@
  * ※戦闘背景ライトをJson形式コマンドで生成する場合は
  * 表示座標の指定をコマンドに送り込む代わりに、Json形式文字列内に
  * 以下の"position"パラメータを記載することで行いますので
- *　通常の戦闘背景ライト生成コマンドと異なる点に注意してください
+ * 通常の戦闘背景ライト生成コマンドと異なる点に注意してください
  * "position":{"x":画面座標x,"y":画面座標y}
  *
  * ========= Jsonの書式チェックに利用できるサイト =========
@@ -560,9 +561,9 @@ Imported.AO_LightingSystem = true;
 	}
 	
 	function getArgBoolean(arg) {
-		arg = getArgString(arg, true);
-		return arg === "T" || arg === "TRUE" || arg === "ON";
-	};
+		arg = typeof arg !== "boolean" ? getArgString(arg, true) : arg;
+		return arg === "T" || arg === "TRUE" || arg === "ON" || arg === true;
+	}
 	
 	//[r, g, b, a] 配列と "rgba(r, g, b, a)" 文字列の相互変換
 	function convertArrayToRGBA(rgbaArr) {
@@ -999,7 +1000,7 @@ Imported.AO_LightingSystem = true;
 		
 		static setShadowLayerColor(rgbaArr, duration) {
 			this._shadowLayerTargetColor = rgbaArr.clone();
-			this._shadowDuration = duration　> 0 ? duration : 0;
+			this._shadowDuration = duration > 0 ? duration : 0;
 			if (this._shadowDuration === 0) {
 				this._shadowLayerColor = this._shadowLayerTargetColor.clone();
 			}
