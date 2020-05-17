@@ -9,6 +9,7 @@
 /*
 2020/3/15 初版ver1.00
 2020/3/18 ver1.001 bitmapのロード終了前にSunLightエフェクトの描写が始まると描写位置がずれる事がある問題の修正
+2020/5/16 ver1.002 ユーテリティ関数の不具合修正
 */
 /*:
  * @plugindesc 天候画面エフェクトを追加
@@ -189,8 +190,8 @@ Imported.AO_WeatherEffect = true;
 	}
 	
 	function getArgBoolean(arg) {
-		arg = getArgString(arg, true);
-		return arg === "T" || arg === "TRUE" || arg === "ON";
+		arg = typeof arg !== "boolean" ? getArgString(arg, true) : arg;
+		return arg === "T" || arg === "TRUE" || arg === "ON" || arg === true;
 	}
 	
 	function toRadian(degree) {
