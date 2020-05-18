@@ -8,6 +8,7 @@
 // I appreciate great plugin creater's work.
 /*
 2020/5/17 ver1.00 初版
+2020/5/18 ver1.001 ファイル末尾の改行のみの文字列を検出しないように仕様変更。不要なログ出力の削除
 */
 /*:
  * @plugindesc 外部テキストファイルを読み込む
@@ -65,7 +66,7 @@
  * @default 1
  * @desc デフォルトの戦闘終了時の自動台詞人数(AO_BalloonWindow併用時のみ)
  *
- * @help AO_TextFileLoader.js ver1.00
+ * @help AO_TextFileLoader.js ver1.001
  * このプラグインの利用にはRPGツクールver1.6.2以上が必要です
  * This plugin requires RPGMakerMVver1.6.2 or heigher
  *
@@ -510,7 +511,6 @@ Imported.AO_TextFileLoader = true;
 		static setBalloonWindow(textState, forcedTarget) {
 			this.setBalloonWindowForcedTarget(textState, forcedTarget);
 			const targetId = textState.balloonWindowTargetName.length ? getNameTargetNumber(textState.balloonWindowTargetName) : textState.balloonWindowTargetId;
-			console.log(targetId, textState);
 			$gameTemp.createBalloonWindow(targetId, textState.loadedText);
 		}
 		
@@ -544,10 +544,11 @@ Imported.AO_TextFileLoader = true;
 					this.processNormalCharacter(textState);
 				}
 				
+				//テキストファイル末尾まで移動した時の処理
 				if (textState.index >= textState.text.length - 1) {
-					textState.loading = false;
-					if (textState.loadedText.length) {
-						this.pushLoadedText(textState);
+					this.processPageEnd(textState);
+					if (textState.loading) {
+						this.resetTextStateIndex(textState);
 					}
 				}
 				this.checkLoopEnd(textState);
@@ -579,7 +580,7 @@ Imported.AO_TextFileLoader = true;
 		}
 		
 		static checkLoadingEnd(textState) {
-			return !textState.random && textState.blockLevel === 0 && !textState.skipElse[0] && textState.loadedTexts.length;
+			return !textState.random && textState.blockLevel === 0 && !textState.skipElse[0] && textState.loadedTexts.length > 0;
 		}
 		
 		static obtainTagCommand(textState) {
@@ -676,8 +677,8 @@ Imported.AO_TextFileLoader = true;
 		static pushLoadedText(textState) {
 			if (!randomInBlock && !textState.random && textState.loadedTexts.length) return;
 			if (!textState.skip) {
-				const text = textState.loadedText.replace(/^\s+/, "");
-				if (text.length) {
+				const text = textState.loadedText.replace(/^[\f\n\r]+|[\f\n\r]+$/gi, "");
+				if (text.length && !/^[\f\n\r]+$/.test(text)) {
 					textState.loadedTexts.push(text);
 				}
 			}
@@ -686,7 +687,7 @@ Imported.AO_TextFileLoader = true;
 		
 		static processNormalCharacter(textState) {
 			if (textState.index < textState.text.length) {
-				if (!textState.skip) textState.loadedText += textState.text[textState.index];
+				if (!textState.skip && textState.text[textState.index]) textState.loadedText += textState.text[textState.index];
 				this.addTextStateIndex(textState, 1);
 			}
 		}
