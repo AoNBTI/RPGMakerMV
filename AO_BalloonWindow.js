@@ -658,7 +658,7 @@ Imported.AO_BalloonWindow = true;
 	
     function getTargetGameObject(id) {
 		return $gameParty.inBattle() ? getTargetGameBattler(id) : getTargetGameCharacter(id);
-    }
+	}
 	
 	function getTargetGameBattler(id) {
 		if (id < 0) {
@@ -770,9 +770,9 @@ Imported.AO_BalloonWindow = true;
 	}
 	
 	//=====================================================================================================================
-    // Game_System
-    //  専用キューの保持と初期化
-    //=====================================================================================================================
+	// Game_System
+	//  専用キューの保持と初期化
+	//=====================================================================================================================
 	const _Game_System_initialize = Game_System.prototype.initialize;
 	Game_System.prototype.initialize = function() {
 		_Game_System_initialize.apply(this, arguments);
