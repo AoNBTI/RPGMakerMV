@@ -12,6 +12,7 @@
 2020/5/3 ver1.001 ヘルプの制御文字記載を修正。テキストアラインコマンドの機能が停止していた問題の修正
 2020/5/9 ver1.002 名前からターゲット番号を取得する方法の変更。ステートに沈黙状態の定義を追加
 2020/5/9 ver1.003 プラグインパラメーターにウィンドウの最大移動速度を追加
+2020/5/24 ver1.004 戦闘中のパーティメンバー入れ替えによるバグをフィクス
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -165,7 +166,7 @@
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置4
 *
-* @help AO_BalloonWindow.js ver1.003
+* @help AO_BalloonWindow.js ver1.004
 * フキダシウィンドウ風スプライトを表示可能にします
 * 表示されるウィンドウは自動で表示・消去され
 * 一文字ずつの表示はされません
@@ -722,9 +723,13 @@ Imported.AO_BalloonWindow = true;
 	// Game_Battler
 	//  直接テキストを追加するメソッドと沈黙状態を定義
 	//=====================================================================================================================
+	Game_Battler.prototype.clearBalloonWindowStates = function() {
+		this.balloonWindowStates = [];
+	};
+	
 	Game_Battler.prototype.createBalloonWindow = function(text) {
 		if (this.balloonWindowStates === undefined) {
-			this.balloonWindowStates = [];
+			this.clearBalloonWindowStates();
 		}
 		this.balloonWindowStates.push(balloonWindowState(text));
 	};
@@ -737,7 +742,6 @@ Imported.AO_BalloonWindow = true;
 		});
 		return this.isAlive() && canSpeak;
 	};
-	
 	//=====================================================================================================================
 	// Game_Temp
 	//  スクリプトコマンドの保持
@@ -1152,14 +1156,25 @@ Imported.AO_BalloonWindow = true;
 		
 		static registGameObjectSet(gameObject, sprite) {
 			//バトラーは設定により登録時にクリア
-			if (clearBattlerBalloonWindowsInEveryBattle && gameObject instanceof Game_BattlerBase) {
+			if (clearBattlerBalloonWindowsInEveryBattle && gameObject instanceof Game_BattlerBase && !gameObject.balloonWindowStates) {
 				gameObject.balloonWindowStates = [];
 			}
+			//既に登録時は登録しない
+			if (this.gameObjectId(gameObject) > 0) return;
 			this.setGameObjectRectangleOffsets(gameObject);
 			this._gameObjects[this._gameObjectId] = gameObject;
 			this._dataObjects[this._gameObjectId] = getTargetGameObjectData(gameObject);
 			this._sprites[this._gameObjectId] = sprite;
 			this._gameObjectId++;
+		}
+		
+		static clearGameObjectSet(gameObject) {
+			const id = this.gameObjectId(gameObject);
+			if (id >= 0) {
+				delete this._gameObjects[id];
+				delete this._dataObjects[id];
+				delete this._sprites[this._gameObjectId];
+			}
 		}
 		
 		//初回のみメモ欄から取得して表示オフセットをセット
@@ -1378,7 +1393,7 @@ Imported.AO_BalloonWindow = true;
 		static addBalloonWindow(gameObject, balloonWindowState) {
 			if (!gameObject) return;
 			//行動制約時は追加出来ない仕様
-			if (gameObject instanceof Game_BattlerBase && !gameObject.canMove()) return;
+			if (gameObject instanceof Game_BattlerBase && !gameObject.canSpeak()) return;
 			//バルーンウィンドウ用配列が無いときは初期化
 			if (gameObject.balloonWindowStates === undefined) {
 				gameObject.balloonWindowStates = [];
