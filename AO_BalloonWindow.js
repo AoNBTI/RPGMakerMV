@@ -13,6 +13,7 @@
 2020/5/9 ver1.002 名前からターゲット番号を取得する方法の変更。ステートに沈黙状態の定義を追加
 2020/5/9 ver1.003 プラグインパラメーターにウィンドウの最大移動速度を追加
 2020/5/24 ver1.004 戦闘中のパーティメンバー入れ替えによるバグをフィクス
+2020/5/24 ver1.005 パーティメンバー入れ替え時に自動で全てのキューをクリアするプラグインパラメータの追加
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -136,6 +137,13 @@
 * @off いいえ
 * @default false
 * @desc マップ移動時に台詞表示予約をクリアするか
+*
+* @param メンバー離脱時キュークリア
+* @type boolean
+* @on はい
+* @off いいえ
+* @default true
+* @desc ”パーティメンバーを外す”コマンド実行時に自動で全てのキューをクリアするか
 *
 * @param コマンドオーバーライド自動解除
 * @type boolean
@@ -385,6 +393,7 @@ Imported.AO_BalloonWindow = true;
 	const clearQueueInBattleEnd = getArgBoolean(parameters["戦闘終了時キュークリア"]);
 	const clearBattlerBalloonWindowsInEveryBattle = getArgBoolean(parameters["戦闘終了時バトラークリア"]);
 	const clearQueueInMapChanged = getArgBoolean(parameters["マップ移動時キュークリア"]);
+	const clearQueueInRemovePartyMember = getArgBoolean(parameters["メンバー離脱時キュークリア"]);
 	const resetOverride = getArgBoolean(parameters["コマンドオーバーライド自動解除"]);
 	const maxWindowSpeed = getArgNumber(parameters["ウィンドウ最大移動速度"]);
 	const partyMemberPosition01 = parameters["フロントビュー用位置1"] ? JSON.parse(parameters["フロントビュー用位置1"]) : {"x":400, "y":400};
@@ -742,6 +751,20 @@ Imported.AO_BalloonWindow = true;
 		});
 		return this.isAlive() && canSpeak;
 	};
+	
+	
+	//=====================================================================================================================
+	// Game_Party
+	//  メンバー離脱時の自動キュークリアを設定
+	//=====================================================================================================================
+	const _Game_Party_removeActor = Game_Party.prototype.removeActor;
+	Game_Party.prototype.removeActor = function(actorId) {
+		if (clearQueueInRemovePartyMember && this._actors.contains(actorId)) {
+			$gameSystem.clearBalloonWindowQueues();
+		}
+		_Game_Party_removeActor.apply(this, arguments);
+	};
+
 	//=====================================================================================================================
 	// Game_Temp
 	//  スクリプトコマンドの保持
@@ -1159,8 +1182,10 @@ Imported.AO_BalloonWindow = true;
 			if (clearBattlerBalloonWindowsInEveryBattle && gameObject instanceof Game_BattlerBase && !gameObject.balloonWindowStates) {
 				gameObject.balloonWindowStates = [];
 			}
-			//既に登録時は登録しない
-			if (this.gameObjectId(gameObject) > 0) return;
+			//既に登録時は登録情報を変更
+			if (this.gameObjectId(gameObject) > 0) {
+				this.clearGameObjectSet(gameObject);
+			}
 			this.setGameObjectRectangleOffsets(gameObject);
 			this._gameObjects[this._gameObjectId] = gameObject;
 			this._dataObjects[this._gameObjectId] = getTargetGameObjectData(gameObject);
