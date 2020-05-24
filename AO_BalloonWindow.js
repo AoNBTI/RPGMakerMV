@@ -1179,7 +1179,7 @@ Imported.AO_BalloonWindow = true;
 		
 		static registGameObjectSet(gameObject, sprite) {
 			//バトラーは設定により登録時にクリア
-			if (clearBattlerBalloonWindowsInEveryBattle && gameObject instanceof Game_BattlerBase && !gameObject.balloonWindowStates) {
+			if (clearBattlerBalloonWindowsInEveryBattle && gameObject instanceof Game_BattlerBase) {
 				gameObject.balloonWindowStates = [];
 			}
 			//既に登録時は登録情報を変更
@@ -1226,7 +1226,7 @@ Imported.AO_BalloonWindow = true;
 		}
 		
 		static gameObjectId(gameObject) {
-			return this._gameObjects.findIndex((object) => {return gameObject === object});
+			return this._gameObjects.indexOf(gameObject);
 		}
 		
 		static gameObjectSprite(gameObject) {
@@ -1243,15 +1243,15 @@ Imported.AO_BalloonWindow = true;
 			if (nameIndex >= 0) {
 				const gameObject = this._gameObjects[nameIndex];
 				if (this.inBattle()) {
-					const partyMemberIndex = $gameParty.members().findIndex((partyMember) =>{return partyMember === gameObject});
+					const partyMemberIndex = $gameParty.members().indexOf(gameObject);
 					if (partyMemberIndex >= 0) return - (partyMemberIndex + 1);
-					const troopMemberIndex = $gameTroop.members().findIndex((troopMember) => {return troopMember === gameObject});
+					const troopMemberIndex = $gameTroop.members().indexOf(gameObject);
 					if (troopMemberIndex >= 0) return troopMemberIndex + 1;
 				} else {
 					if (gameObject === $gamePlayer) return -1;
-					const followerIndex = $gamePlayer.followers()._data.findIndex((follower) => {return follower === gameObject});
+					const followerIndex = $gamePlayer.followers()._data.indexOf(gameObject);
 					if (followerIndex >= 0) return - (followerIndex + 2);
-					const eventIndex = $gameMap._events.findIndex((event) => {return event === gameObject});
+					const eventIndex = $gameMap._events.indexOf(gameObject)
 					if (eventIndex >= 0) return eventIndex + 1;
 				}
 			}
@@ -1326,7 +1326,7 @@ Imported.AO_BalloonWindow = true;
 				this._gameBalloonWindows.forEach((gameBalloonWindow) => {
 					gameBalloonWindow.update();
 				})
-				//当たり判定処理関数はここかな？
+				//当たり判定処理関数
 				this.updateGameBalloonWindowPosition();
 			}
 		}
@@ -1555,8 +1555,7 @@ Imported.AO_BalloonWindow = true;
 				const targetPosition = this.windowTargetPosition(gameObjectRectangle);
 				this.windowState.position.x = targetPosition.x;
 				this.windowState.position.y = targetPosition.y;
-			}
-			
+			}		
 		}
 		
 		completed() {
@@ -1710,6 +1709,11 @@ Imported.AO_BalloonWindow = true;
 		
 		updateBalloonWindowState() {
 			this.balloonWindowState.position = this.windowState.position;
+			if (this.gameObject.balloonWindowStates.indexOf(this.balloonWindowState) < 0) {
+				if (this.balloonWindowState.displayFrame > closeAnimationCount) {
+					this.balloonWindowState.displayFrame = closeAnimationCount;
+				}
+			}
 		}
 		
 		updateAnimationStates() {
