@@ -933,9 +933,9 @@ Imported.AO_BalloonWindow = true;
 	};
 	
 	//=============================================================================
-    // Spriteset_Base
-    //  ウインドウとアンカー表示用コンテナの追加と登録
-    //=============================================================================	
+	// Spriteset_Base
+	//  ウインドウとアンカー表示用コンテナの追加と登録
+	//=============================================================================	
 	const _Spriteset_Base_initialize = Spriteset_Base.prototype.initialize;
 	Spriteset_Base.prototype.initialize = function() {
 		BalloonWindowManager.initialize();
