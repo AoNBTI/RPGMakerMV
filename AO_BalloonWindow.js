@@ -967,9 +967,9 @@ Imported.AO_BalloonWindow = true;
 	};
 	
 	//=============================================================================
-    // Spriteset_Map Spriteset_Battle
-    //  マネージャに戦闘状態を登録。必要時はキューをクリア
-    //=============================================================================	
+	// Spriteset_Map Spriteset_Battle
+	//  マネージャに戦闘状態を登録。必要時はキューをクリア
+	//=============================================================================	
 	const _Spriteset_Map_initialize = Spriteset_Map.prototype.initialize;
 	Spriteset_Map.prototype.initialize = function() {
 		BalloonWindowManager.setInMap();
@@ -984,10 +984,10 @@ Imported.AO_BalloonWindow = true;
 		_Spriteset_Battle_initialize.apply(this, arguments);
 	};
 	
-    //=============================================================================
-    // Sprite_Character・Sprite_Acotor・Sprite_Enemy
-    //  ゲームオブジェクトとスプライトセットのレジスト
-    //=============================================================================	
+	//=============================================================================
+	// Sprite_Character・Sprite_Acotor・Sprite_Enemy
+	//  ゲームオブジェクトとスプライトセットのレジスト
+	//=============================================================================	
     const _Sprite_Character_updateBitmap = Sprite_Character.prototype.updateBitmap;
     Sprite_Character.prototype.updateBitmap = function() {
         if (this.isImageChanged()) this._characterChange = true;
