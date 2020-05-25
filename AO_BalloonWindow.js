@@ -215,7 +215,7 @@
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置4
 *
-* @help AO_BalloonWindow.js ver1.004
+* @help AO_BalloonWindow.js ver1.01
 * フキダシウィンドウ風スプライトを表示可能にします
 * 表示されるウィンドウは自動で表示・消去され
 * 一文字ずつの表示はされません
