@@ -14,6 +14,7 @@
 2020/5/9 ver1.003 プラグインパラメーターにウィンドウの最大移動速度を追加
 2020/5/24 ver1.004 戦闘中のパーティメンバー入れ替えによるバグをフィクス
 2020/5/24 ver1.005 パーティメンバー入れ替え時に自動で全てのキューをクリアするプラグインパラメータの追加
+2020/5/25 ver1.01 名前ウィンドウ表示機能追加。パーティメンバー入れ替え時にウィンドウが最小で残っていた不具合の修正
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -72,9 +73,9 @@
 * @type select
 * @option ウィンドウ角が斜め
 * @0
-* @option ウィンドウ角が丸
-* @1
 * @option ウィンドウがトゲトゲ
+* @1
+* @option ウィンドウ角が丸
 * @2
 * @default 0
 *
@@ -85,6 +86,46 @@
 * @option 丸の連なり
 * @1
 * @default 0
+*
+* @param デフォルト名前フォント
+* @type string
+* @default GameFont
+* @desc 名前ウィンドウに利用されるフォント。変更する場合は別途フォントロードプラグインが必要
+*
+* @param デフォルト名前フォントサイズ
+* @type number
+* @default 20
+* @desc デフォルトの名前表示フォントサイズ
+*
+* @param デフォルト名前フォントカラー
+* @type string
+* @default rgba(255, 255, 255, 1)
+* @desc 名前表示フォントのデフォルト色"rgba(赤(0-255),緑(0-255),青(0-255),アルファ値(0-1))"
+*
+* @param デフォルト名前フォントアウトラインカラー
+* @type string
+* @default rgba(0, 0, 0, 0.5)
+* @desc 名前表示フォントアウトラインのデフォルト色"rgba(赤(0-255),緑(0-255),青(0-255),アルファ値(0-1))"
+*
+* @param デフォルト名前ウィンドウカラー
+* @type string
+* @default rgba(50, 50, 50, 0.5)
+* @desc 名前ウィンドウのデフォルト色"rgba(赤(0-255),緑(0-255),青(0-255),アルファ値(0-1))"
+*
+* @param デフォルト名前ウィンドウラインカラー
+* @type string
+* @default rgba(255, 255, 255, 1)
+* @desc 名前ウィンドウラインのデフォルト色"rgba(赤(0-255),緑(0-255),青(0-255),アルファ値(0-1))"
+*
+* @param デフォルト名前ウィンドウ形状
+* @type select
+* @option ウィンドウ角が斜め
+* @0
+* @option ウィンドウがトゲトゲ
+* @1
+* @option ウィンドウ角が丸
+* @2
+* @default 2
 *
 * @param 文字ウエイトフレーム
 * @type number
@@ -322,6 +363,7 @@
 *             上段が0-3で下段が4-7です
 * \SDW[d] : ウィンドウ表示時間を手動d(フレーム数)にする
 * \QWF[d] : キューにおける次のウィンドウの待ち時間を手動でd(フレーム数)にする
+* \NC[キャラクター名]: 名前ウィンドウにキャラクター名を表示
 * 
 *
 * =============キャラクター・バトラーのメモ欄解説=============
@@ -363,7 +405,7 @@
  * @type number
  * @default 400
 */
- 
+
 var Imported = Imported || {};
 Imported.AO_BalloonWindow = true;
  
@@ -406,6 +448,14 @@ Imported.AO_BalloonWindow = true;
 	const partyMemberAnchorPosition04 = new Point(partyMemberPosition04.x, partyMemberPosition04.y);
 	const partyMemberAnchorPositions = [partyMemberAnchorPosition01, partyMemberAnchorPosition02, partyMemberAnchorPosition03, partyMemberAnchorPosition04];
 	
+	const defaultNameFontFamliy = getArgString(parameters["デフォルト名前フォント"]);
+	const defaultNameFontSize = getArgNumber(parameters["デフォルト名前フォントサイズ"]);
+	const defaultNameFontColor = getArgString(parameters["デフォルト名前フォントカラー"]);
+	const defaultNameFontOutlineColor = getArgString(parameters["デフォルト名前フォントアウトラインカラー"]);
+	const defaultNameWindowColor = getArgString(parameters["デフォルト名前ウィンドウカラー"]);
+	const defaultNameWindowLineColor = getArgString(parameters["デフォルト名前ウィンドウラインカラー"]);
+	const defaultNameWindowShape = getArgNumber(parameters["デフォルト名前ウィンドウ形状"]);
+	
 	const textAlignTypes = {"left": 0, "center": 1, "right": 3};
 	const defaultTextAligin = textAlignTypes.left;
 	const defaultLineSpace = 4;
@@ -415,6 +465,7 @@ Imported.AO_BalloonWindow = true;
 	
 	const defaultWindowPadding = 8;
 	const defaultWindowLineWidth = 2;
+	const defaultNameWindowPadding = 4;
 	
 	const defaultAnchorWidth = 24;
 	const defaultAnchorHeight = 48;
@@ -573,6 +624,21 @@ Imported.AO_BalloonWindow = true;
 		}
 	}
 	
+	function nameState(textState, windowState) {
+		const nameState = {"textState": textState, "windowState": windowState};
+		textState.text = "";
+		textState.name = true;
+		textState.align = textAlignTypes.center;
+		textState.fontFamily = defaultNameFontFamliy;
+		textState.fontSize = defaultNameFontSize;
+		textState.fontColor = defaultNameFontColor;
+		windowState.shape = defaultNameWindowShape;
+		windowState.padding = defaultNameWindowPadding;
+		windowState.color = defaultNameWindowColor;
+		windowState.lineColor = defaultNameWindowLineColor;
+		return nameState;
+	}
+	
 	function animationState(visible) {
 		const scale = visible ? new Point(1, 1) : new Point(0, 0);
 		const opacity = visible ? 255 : 0;
@@ -631,6 +697,7 @@ Imported.AO_BalloonWindow = true;
 			//WIG;,WOG;(ウインドウの強制グラフィック内表示の有無)
 			//SFN[s], SFI[d](フェースファイル名指定、フェースインデックス指定)
 			//SDW[d](表示時間ウエイト設定)
+			//NC[name](名前表示設定)
 			text = text.replace(/\x1bC\[(\d+)\]/gi, "");
 			//text = text.replace(/\x1bI\[(\d+)\]/gi, "");
 			text = text.replace(/\x1bCTC\[rgba\([^].*?\)]/gi, "");
@@ -657,6 +724,7 @@ Imported.AO_BalloonWindow = true;
 			text = text.replace(/\x1bWOG;/gi, "");
 			text = text.replace(/\x1bSFN\[([^\]]+)\]/gi, "");
 			text = text.replace(/\x1bSEI\[(\d+)\]/gi, "");
+			text = text.replace(/\x1bNC\[([^\]]+)\]/gi, "");
 			//CFS[d](フォントサイズ変更),RFS(フォントサイズリセット),{(フォントサイズ増加),}(フォントサイズ低下)は残してある
 		}
 		
@@ -1400,7 +1468,7 @@ Imported.AO_BalloonWindow = true;
 					}) === false)  {
 						this.createBalloonWindow(gameObject, balloonWindowState);
 					}
-					balloonWindowState.displayFrame -= 1;
+					balloonWindowState.displayFrame--;
 				}.bind(this))
 				//描写終了したバルーンウインドウステートの除去
 				gameObject.balloonWindowStates =  gameObject.balloonWindowStates.filter((balloonWindowState) => {
@@ -1496,6 +1564,7 @@ Imported.AO_BalloonWindow = true;
 			this.textState = textState();
 			this.windowState = windowState();
 			this.anchorState = anchorState();
+			this.nameState = nameState(textState(), windowState());
 		}
 		
 		setup(gameObject, balloonWindowState) {
@@ -1708,11 +1777,11 @@ Imported.AO_BalloonWindow = true;
 		}
 		
 		updateBalloonWindowState() {
+			//位置情報の更新
 			this.balloonWindowState.position = this.windowState.position;
-			if (this.gameObject.balloonWindowStates.indexOf(this.balloonWindowState) < 0) {
-				if (this.balloonWindowState.displayFrame > closeAnimationCount) {
-					this.balloonWindowState.displayFrame = closeAnimationCount;
-				}
+			//オブジェクトがデータを持たないときは終了
+			if (this.gameObject.balloonWindowStates.indexOf(this.balloonWindowState) < 0) {	
+				this.balloonWindowState.displayFrame = 0;
 			}
 		}
 		
@@ -1784,7 +1853,10 @@ Imported.AO_BalloonWindow = true;
 		
 		initSprites() {
 			this._backgroundContainer = new PIXI.Container();
+			this._nameContainerSprite = new Sprite();
 			this._mainSprite = new Sprite();
+			this._nameSprite = new Sprite();
+			this._nameBackSprite = new Sprite();
 			this._faceSprite = new Sprite();
 			this._backSprite = new Sprite();
 			this.registSprite();
@@ -1795,14 +1867,21 @@ Imported.AO_BalloonWindow = true;
 			this._backgroundContainer.addChild(this._backSprite);
 			this._backgroundContainer.addChild(this._faceSprite);
 			this.addChild(this._mainSprite);
+			this._nameContainerSprite.addChild(this._nameBackSprite);
+			this._nameContainerSprite.addChild(this._nameSprite);
+			this.addChild(this._nameContainerSprite);
 		}
 		
 		setup(balloonWindow) {
 			this._balloonWindow = balloonWindow;
 			this.setupMainBitmap(balloonWindow);
 			this.drawTextEx(balloonWindow.textState, false);
+			this.setupNameBitmap(balloonWindow);
+			this.drawTextEx(balloonWindow.nameState.textState, false);
 			this.setupFace(balloonWindow);
 			this.setupBackBitmap(balloonWindow);
+			this.setupNameBackBitmap(balloonWindow);
+			this.setupNamePosition();
 			this.updatePosition();
 			this.updateRectangles();
 		}
@@ -1833,6 +1912,20 @@ Imported.AO_BalloonWindow = true;
 			windowState.faceSize.height = ph * this._faceSprite.scale.y;
 		}
 		
+		setupNameBitmap(balloonWindow) {
+			const nameState = balloonWindow.nameState;
+			const nameTextState = balloonWindow.nameState.textState;
+			if (nameTextState.text.length <= 0) return;
+			const textState = this.drawTextEx(nameTextState, true);
+			textState.index = 0;
+			const bitmap = new BalloonWindowBitmap();
+			bitmap.resize(textState.sizeWidth, textState.sizeHeight);
+			nameTextState.sizeWidth = textState.sizeWidth;
+			nameTextState.sizeHeight = textState.sizeHeight;
+			this._nameSprite.bitmap = bitmap;
+			this._nameSprite.move(- bitmap.width / 2, - bitmap.height / 2);
+		}
+		
 		setupBackBitmap(balloonWindow) {
 			const textState = balloonWindow.textState;
 			const windowState = balloonWindow.windowState;
@@ -1857,6 +1950,35 @@ Imported.AO_BalloonWindow = true;
 			
 			this._faceSprite.move(- bitmap.width / 2 + windowState.padding, - windowState.faceSize.height / 2);
 			this._mainSprite.move(this._mainSprite.x + windowState.faceSize.width / 2, this._mainSprite.y);
+		}
+		
+		setupNameBackBitmap(balloonWindow) {
+			const textState = balloonWindow.nameState.textState;
+			if (textState.text.length <= 0) return;
+			const windowState = balloonWindow.nameState.windowState;
+			const bitmap = new BalloonWindowBitmap();
+			const width = textState.sizeWidth;
+			const height = textState.sizeHeight;
+			switch (windowState.shape) {
+				case windowShapeTypes.circle:
+					bitmap.drawNineSliceRect(0, 0, width, height, windowState);
+					break;
+				case windowShapeTypes.spike:
+					bitmap.drawSpike(0, 0, width, height, windowState);
+					break;
+				default:
+					bitmap.drawSquare(0, 0, width, height, windowState);
+			}
+			this._nameBackSprite.bitmap = bitmap;
+			this._nameBackSprite.move(- bitmap.width / 2, - bitmap.height / 2);
+			//サイズの逆設定
+			windowState.size.width = bitmap.width;
+			windowState.size.height = bitmap.height;
+			this._nameBackSprite.move(- bitmap.width / 2, - bitmap.height / 2);
+		}
+		
+		setupNamePosition() {
+			this._nameContainerSprite.move(- this._backSprite.width / 2 + this._nameBackSprite.width / 2, - this._backSprite.height / 2 - this._nameBackSprite.height / 2);
 		}
 		
 		update() {
@@ -2081,6 +2203,9 @@ Imported.AO_BalloonWindow = true;
 				case 'SFI':
 					this.setFaceIndex(this.obtainEscapeParam(textState));
 					break;
+				case 'NC':
+					this.setNameText(this.obtainEscapeStrings(textState));
+					break;
 			}
 		}
 		
@@ -2262,6 +2387,10 @@ Imported.AO_BalloonWindow = true;
 			this._balloonWindow.windowState.faceIndex = faceIndex;
 		}
 		
+		setNameText(nameText) {
+			this._balloonWindow.nameState.textState.text = nameText;
+		}
+		
 		processNormalCharacter(textState) {
 			const c = textState.text[textState.index++];
 			const w = this.measureTextWidth(c, textState);
@@ -2270,11 +2399,15 @@ Imported.AO_BalloonWindow = true;
 				addX = (textState.align === textAlignTypes.center) ? 
 						Math.floor((textState.sizeWidth - textState.lineWidthArr[textState.lineIndex]) / 2) : addX;
 				addX = (textState.align === textAlignTypes.right) ? textState.sizeWidth - textState.lineWidthArr[textState.lineIndex] : addX;
-				this._mainSprite.bitmap.setFontFace(textState.fontFamily);
-				this._mainSprite.bitmap.setFontSize(textState.fontSize);
-				this._mainSprite.bitmap.setTextColor(textState.fontColor);
-				this._mainSprite.bitmap.setTextOutlineColor(textState.fontOutlineColor);
-				this._mainSprite.bitmap.drawText(c, textState.x + addX, textState.y, w * 2, textState.height);
+				let bitmap = this._mainSprite.bitmap;
+				if (textState.name) {
+					bitmap = this._nameSprite.bitmap;
+				}
+				bitmap.setFontFace(textState.fontFamily);
+				bitmap.setFontSize(textState.fontSize);
+				bitmap.setTextColor(textState.fontColor);
+				bitmap.setTextOutlineColor(textState.fontOutlineColor);
+				bitmap.drawText(c, textState.x + addX, textState.y, w * 2, textState.height);
 			}
 			textState.x += w;
 		}	
