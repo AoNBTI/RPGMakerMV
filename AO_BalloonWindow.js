@@ -15,6 +15,7 @@
 2020/5/24 ver1.004 戦闘中のパーティメンバー入れ替えによるバグをフィクス
 2020/5/24 ver1.005 パーティメンバー入れ替え時に自動で全てのキューをクリアするプラグインパラメータの追加
 2020/5/25 ver1.01 名前ウィンドウ表示機能追加。パーティメンバー入れ替え時にウィンドウが最小で残っていた不具合の修正
+2020/7/25 ver1.011 ビットマップの読み込みが間に合わなかった場合の位置初期化方法を修正
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -215,7 +216,7 @@
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置4
 *
-* @help AO_BalloonWindow.js ver1.01
+* @help AO_BalloonWindow.js ver1.011
 * フキダシウィンドウ風スプライトを表示可能にします
 * 表示されるウィンドウは自動で表示・消去され
 * 一文字ずつの表示はされません
@@ -530,6 +531,10 @@ Imported.AO_BalloonWindow = true;
 			}
 		}
 		return colors;
+	}
+	
+	function checkSmallCharacter(c) {
+		return /ぁ|ぃ|ぅ|ぇ|ぉ|っ|ゃ|ゅ|ょ|ゎ|ァ|ィ|ゥ|ェ|ォ|ッ|ャ|ュ|ョ|ｧ|ｨ|ｩ|ｪ|ｫ|ｯ|ｬ|ｭ|ｮ/.test(c);
 	}
 	
 	function balloonWindowState(text) {
@@ -1615,16 +1620,16 @@ Imported.AO_BalloonWindow = true;
 		
 		setInitialPosition(gameObject, balloonWindowState) {
 			const gameObjectRectangle = BalloonWindowManager.gameObjectRectangle(gameObject);
-			if (gameObjectRectangle.width === 0 || gameObjectRectangle.height === 0) {
-				if (this.balloonWindowState) {
-					this.windowState.position.x = this.balloonWindowState.position.x;
-					this.windowState.position.y = this.balloonWindowState.position.y;
-				} 
-			} else {
-				const targetPosition = this.windowTargetPosition(gameObjectRectangle);
-				this.windowState.position.x = targetPosition.x;
-				this.windowState.position.y = targetPosition.y;
-			}		
+			//以下ビットマップ読み込みが間に合わなかった場合の幅高さ設定。デフォルトのバトラーの大きさに合わせて応急処置中
+			if (gameObjectRectangle.width === 0) {
+				gameObjectRectangle.width = 64;
+			}
+			if (gameObjectRectangle.height === 0) {
+				gameObjectRectangle.height = 64;
+			}
+			const targetPosition = this.windowTargetPosition(gameObjectRectangle);
+			this.windowState.position.x = targetPosition.x;
+			this.windowState.position.y = targetPosition.y;
 		}
 		
 		completed() {
@@ -2392,6 +2397,7 @@ Imported.AO_BalloonWindow = true;
 		}
 		
 		processNormalCharacter(textState) {
+			if (this.processSonantCharacter(textState)) return;
 			const c = textState.text[textState.index++];
 			const w = this.measureTextWidth(c, textState);
 			if (!textState.forSize) {
@@ -2410,7 +2416,39 @@ Imported.AO_BalloonWindow = true;
 				bitmap.drawText(c, textState.x + addX, textState.y, w * 2, textState.height);
 			}
 			textState.x += w;
-		}	
+		}
+		
+		processSonantCharacter(textState) {
+			const nextC = textState.text[textState.index];
+			if (!/゛/.test(nextC)) return false;
+			const beforeC = textState.index > 0 ? textState.text[textState.index - 1] : undefined;
+			const width = this.measureTextWidth(nextC, textState);
+			const reduceX = beforeC  && textState.x !== textState.left ? this.measureTextWidth(beforeC, textState) / 10 : 0;
+			if (!textState.forSize) {
+				let addX = 0;
+				addX = (textState.align === textAlignTypes.center) ? 
+						Math.floor((textState.sizeWidth - textState.lineWidthArr[textState.lineIndex]) / 2) : addX;
+				addX = (textState.align === textAlignTypes.right) ? textState.sizeWidth - textState.lineWidthArr[textState.lineIndex] : addX;
+				const addY = beforeC && checkSmallCharacter(beforeC) ? textState.fontSize / 5 : 0;
+				let bitmap = this._mainSprite.bitmap;
+				if (textState.name) {
+					bitmap = this._nameSprite.bitmap;
+				}
+				bitmap.setFontFace(textState.fontFamily);
+				bitmap.setFontSize(textState.fontSize);
+				bitmap.setTextColor(textState.fontColor);
+				bitmap.setTextOutlineColor(textState.fontOutlineColor);
+				bitmap.drawText(nextC, textState.x + addX - reduceX, textState.y + addY, width * 2, textState.height);
+			}
+			textState.index++;
+			if (textState.forSize && (/\n|\r|\f/.test(textState.text[textState.index]) || textState.text[textState.index] === undefined)) {
+				textState.x += width / 3;
+			} else {
+				textState.x += width / 4 - reduceX;
+			}
+			return true;
+		}
+		
 	}
 	
 	//======================================================
