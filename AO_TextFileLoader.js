@@ -9,6 +9,7 @@
 /*
 2020/5/17 ver1.00 初版
 2020/5/18 ver1.001 ファイル末尾の改行のみの文字列を検出しないように仕様変更。不要なログ出力の削除
+2020/8/27 ver1.002 プラグインパラメータによる発動率の設定が正常に機能していなかった問題の修正
 */
 /*:
  * @plugindesc 外部テキストファイルを読み込む
@@ -66,7 +67,7 @@
  * @default 1
  * @desc デフォルトの戦闘終了時の自動台詞人数(AO_BalloonWindow併用時のみ)
  *
- * @help AO_TextFileLoader.js ver1.001
+ * @help AO_TextFileLoader.js ver1.002
  * このプラグインの利用にはRPGツクールver1.6.2以上が必要です
  * This plugin requires RPGMakerMVver1.6.2 or heigher
  *
@@ -323,6 +324,10 @@
  * ライセンスはMIT
  * 改変歓迎です
  *
+ */
+ 
+ /*
+ ファイルの読み込み形式をローカル以外にも対応できるようにしたい
  */
 
 var Imported = Imported || {};
@@ -826,8 +831,6 @@ Imported.AO_TextFileLoader = true;
 			} else {
 				result = gameObjectStatus ? true : false;
 			}
-			
-			//console.log(gameObjectStatus, inequality, conditionStatus, result);
 			return result;
 		}
 		
@@ -1077,6 +1080,25 @@ Imported.AO_TextFileLoader = true;
 		TextStateManager.createTextState(name, filename);
 	};
 	
+	Game_Temp.prototype.getTextState = function(name) {
+		return TextStateManager.textState(name);
+	};
+	
+	Game_Temp.prototype.loadNextText = function(name) {
+		const textState = TextStateManager.textState(name);
+		if (textState) {
+			TextStateManager.loadNextText(textState);
+		}
+	}
+	
+	Game_Temp.prototype.getLoadedText = function(name) {
+		const textState = TextStateManager.textState(name);
+		if (textState) {
+			TextStateManager.loadNextText(textState);
+			return textState.loadedText;
+		}
+	}
+	
 	Game_Temp.prototype.loadTextStateToVariable = function(name, gameVariableId) {
 		const textState = TextStateManager.textState(name);
 		if (textState) {
@@ -1253,7 +1275,7 @@ Imported.AO_TextFileLoader = true;
 		Game_Battler.prototype.createDamageBalloonWindow = function() {
 			if (!this.canSpeak()) return;
 			if (!this.autoBalloonWindowInfo.damage || !this.autoBalloonWindowInfo.damage.length) return;
-			if (this.autoBalloonWindowInfo.damageSpeakPercent <= Math.random() ) return;
+			if (this.autoBalloonWindowInfo.damageSpeakPercent <= Math.floor(Math.random() * 100)) return;
 			const textStateName = this.autoBalloonWindowInfo.damage;
 			this.loadTextStateToBalloonWindow(textStateName);
 		};
@@ -1273,7 +1295,7 @@ Imported.AO_TextFileLoader = true;
 		Game_Battler.prototype.createEvasionBalloonWindow = function() {
 			if (!this.canSpeak()) return;
 			if (!this.autoBalloonWindowInfo.evade || !this.autoBalloonWindowInfo.evade.length) return;
-			if (this.autoBalloonWindowInfo.evadeSpeakPercent <= Math.random() ) return;
+			if (this.autoBalloonWindowInfo.evadeSpeakPercent <= Math.floor(Math.random() * 100)) return;
 			const textStateName = this.autoBalloonWindowInfo.evade;
 			this.loadTextStateToBalloonWindow(textStateName);
 		};
@@ -1286,7 +1308,7 @@ Imported.AO_TextFileLoader = true;
 		
 		Game_Battler.prototype.createCollapseBalloonWindow = function() {
 			if (!this.autoBalloonWindowInfo.collapse || !this.autoBalloonWindowInfo.collapse.length) return;
-			if (this.autoBalloonWindowInfo.collapseSpeakPercent <= Math.random() ) return;
+			if (this.autoBalloonWindowInfo.collapseSpeakPercent <= Math.floor(Math.random() * 100)) return;
 			const textStateName = this.autoBalloonWindowInfo.collapse;
 			this.loadTextStateToBalloonWindow(textStateName);
 		};
@@ -1326,9 +1348,9 @@ Imported.AO_TextFileLoader = true;
 		//For YEP_X_ActSeqPack2
 		if (Imported.YEP_X_ActSeqPack2) {
 			
-			const _battleManege_processActionSequence = BattleManager.processActionSequence;
+			const _BattleManager_processActionSequence = BattleManager.processActionSequence;
 			BattleManager.processActionSequence = function(actionName, actionArgs) {			
-				_battleManege_processActionSequence.apply(this, arguments);
+				_BattleManager_processActionSequence.apply(this, arguments);
 				if (actionName.match(/BALLOONWINDOW[ ](.*)/i)) {
 					return this.actionCreateBalloonWindow(getArgString(RegExp.$1), actionArgs);
 				}
