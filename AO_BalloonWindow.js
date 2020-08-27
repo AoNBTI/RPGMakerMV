@@ -16,6 +16,7 @@
 2020/5/24 ver1.005 パーティメンバー入れ替え時に自動で全てのキューをクリアするプラグインパラメータの追加
 2020/5/25 ver1.01 名前ウィンドウ表示機能追加。パーティメンバー入れ替え時にウィンドウが最小で残っていた不具合の修正
 2020/7/25 ver1.011 ビットマップの読み込みが間に合わなかった場合の位置初期化方法を修正
+2020/8/2 ver1.020 キューへの情報登録方法を変更
 */
 /*:
 * @plugindesc 吹き出し風メッセージウインドウ表示プラグイン
@@ -140,6 +141,12 @@
 * @default 180
 * @desc ウィンドウ表示の最小フレーム数
 *
+* @param　最小キューウエイトフレーム
+* @type number
+* @min 1
+* @default 30
+* @desc キューの最小待ちフレーム数
+*
 * @param デフォルトウィンドウSE
 * @desc ウィンドウ表示時のSE
 * @type file
@@ -216,7 +223,7 @@
 * @type struct<Position>
 * @desc フロントビュー用フキダシ位置4
 *
-* @help AO_BalloonWindow.js ver1.011
+* @help AO_BalloonWindow.js ver1.020
 * フキダシウィンドウ風スプライトを表示可能にします
 * 表示されるウィンドウは自動で表示・消去され
 * 一文字ずつの表示はされません
@@ -430,6 +437,7 @@ Imported.AO_BalloonWindow = true;
 	const defaultAnchorShape = getArgNumber(parameters["デフォルトウィンドウアンカー形状"]);
 	const singleCharacterWait = getArgNumber(parameters["文字ウエイトフレーム"]);
 	const minmumDisplayFrame = getArgNumber(parameters["最小ウエイトフレーム"]);
+	const minmumQueWaitFrame = getArgNumber(parameters["最小キューウエイトフレーム"]);
 	const defaultSeName = getArgString(parameters["デフォルトウィンドウSE"]);
 	const defaultSeVolume = getArgNumber(parameters["SEボリューム"]);
 	const defaultFaceImageScale = getArgNumber(parameters["フェイス倍率"]);
@@ -483,6 +491,8 @@ Imported.AO_BalloonWindow = true;
 	const targetIdStrings = "targetId";
 	const targetNameStrings = "targetName";
 	const queueIdStrings = "queueId";
+	
+	const targetTypes = {"empty": 0, "player": 1, "follower": 2, "event": 3, "actor": 4, "enemy": 5 ,"dummy": 6}
 	
 	function getArgNumber(arg) {
 		if (typeof arg === "string") {arg = arg.replace(/^\s+|\s+$/g,'');}
@@ -552,7 +562,7 @@ Imported.AO_BalloonWindow = true;
 			balloonWindowState.displayFrame = controlWait;
 		} else {
 			const text = convertEscapeCharacters(balloonWindowState.text, true, true);
-			const textWait = text.length * singleCharacterWait
+			const textWait = text.length * singleCharacterWait;
 			balloonWindowState.displayFrame = textWait > minmumDisplayFrame ? textWait : minmumDisplayFrame;
 		}	
 	}
@@ -573,7 +583,14 @@ Imported.AO_BalloonWindow = true;
 	//ディスプレイウエイト(表示時間)設定後に設定されるキュー内の次のウィンドウポップの待ち時間設定関数
 	function setNextPopWait(balloonWindowState) {
 		if (balloonWindowState.displayFrame === Infinity) return;
-		balloonWindowState.nextPopWait = Math.floor(balloonWindowState.displayFrame / 3 * 2);
+		const displayFrame = balloonWindowState.displayFrame;
+		if (displayFrame <= minmumDisplayFrame) {
+			const text = convertEscapeCharacters(balloonWindowState.text, true, true);
+			const queueWait = Math.floor(text.length * singleCharacterWait * 2 / 3);
+			balloonWindowState.nextPopWait = queueWait < minmumQueWaitFrame ? minmumQueWaitFrame : queueWait;
+		} else {
+			balloonWindowState.nextPopWait = Math.floor(balloonWindowState.displayFrame / 3 * 2);
+		}
 		setControlCharacterQueWait(balloonWindowState);
 	}
 	
@@ -657,9 +674,9 @@ Imported.AO_BalloonWindow = true;
 	}
 	
 	//キュー状態。マップＩＤが0の時は戦闘中
-	function queuedState(targetId, gameObjectId, balloonWindowState) {
+	function queuedState(targetObject, balloonWindowState) {
 		return {
-			"targetId": targetId, "gameObjectId": gameObjectId, "mapId": -1, "balloonWindowState": balloonWindowState
+			"targetObject": targetObject, "mapId": -1, "balloonWindowState": balloonWindowState
 		}
 	}
 	
@@ -853,8 +870,20 @@ Imported.AO_BalloonWindow = true;
 		}
 	};
 	
+	Game_Temp.prototype.createGameObjectBalloonWindow = function(gameObject, text) {
+		if (!gameObject) return;
+		if (gameObject.balloonWindowStates === undefined) {
+			gameObject.balloonWindowStates = [];
+		}
+		gameObject.balloonWindowStates.push(balloonWindowState(text));	
+	};
+	
 	Game_Temp.prototype.queueBalloonWindow = function(queueIndex, targetId, text) {
 		BalloonWindowManager.queueBalloonWindowState(queueIndex, targetId, balloonWindowState(text));
+	}
+	
+	Game_Temp.prototype.queueGameObjectBalloonWindow = function(queueIndex, gameObject, text) {
+		BalloonWindowManager.queueGameObjectBalloonWindowState(queueIndex, gameObject, balloonWindowState(text));
 	}
 	
 	Game_Temp.prototype.clearMapBalloonWindowQueue = function(queueIndex) {
@@ -863,6 +892,10 @@ Imported.AO_BalloonWindow = true;
 	
 	Game_Temp.prototype.clearBattleBalloonWindowQueue = function(queueIndex) {
 		$gameSystem._battleBalloonWindowQueues[queueIndex] = [];
+	}
+	
+	Game_Temp.prototype.clearGameObjectSet = function(gameObject) {
+		BalloonWindowManager.clearGameObjectSet(gameObject);
 	}
 	
 	//=====================================================================================================================
@@ -953,6 +986,7 @@ Imported.AO_BalloonWindow = true;
 		
 		//キューに加えるか否かの設定・暗くするを選択すると即時表示
 		const queued = this._params[2] === 0 ? true : false;
+		
 		//テキスト文章の生成
 		let text = "";
 		while (this.nextEventCode() === 401) {
@@ -973,10 +1007,32 @@ Imported.AO_BalloonWindow = true;
 			queueId = getArgNumber(queueIdArr[1]);
 		}
 		
-		//ターゲット番号の抽出
+		//ターゲット番号と名前の抽出
 		const targetIdTag = "<" + targetIdStrings + ":" + "([-]?([1-9]\d*|0))" + ">";
 		const targetNameTag = "<" + targetNameStrings + ":" + "(.+)" + ">";
+		
+		let targetGameObject;
+		//名前でゲームオブジェクト抽出
 		const nameRe = new RegExp(targetNameTag, "gi");
+		let nameArr;
+		while (nameArr = nameRe.exec(text)) {
+			text = text.replace(nameArr[0], '');
+			targetGameObject = BalloonWindowManager.targetObjectGameObject(BalloonWindowManager.nameTargetObject(nameArr[1]));
+		}
+		//ターゲット番号でゲームオブジェクト抽出
+		const idRe = new RegExp(targetIdTag, "gi");
+		let idArr;
+		while (idArr = idRe.exec(text)) {
+			text = text.replace(idArr[0], '');
+			targetId = getArgNumber(idArr[1]);
+			targetGameObject = getTargetGameObject(targetId);
+		}
+		//無いときは実効中のイベント
+		if (!targetGameObject) {
+			targetGameObject = $gameMap.event($gameMap._interpreter.eventId());
+		}
+		
+		/*
 		let targetId = 0;
 		let nameArr;
 		while (nameArr = nameRe.exec(text)) {
@@ -989,6 +1045,8 @@ Imported.AO_BalloonWindow = true;
 			text = text.replace(idArr[0], '');
 			targetId = getArgNumber(idArr[1]);
 		}
+		*/
+		
 		//先頭の改行・空白スペースの除去
 		while (/^\s/.test(text)) {
 			text = text.replace(/^\s/, '');
@@ -996,11 +1054,21 @@ Imported.AO_BalloonWindow = true;
 		text = commandText + text;
 		
 		//ウインドウ生成
+		if (targetGameObject) {
+			if (queued) {
+			$gameTemp.queueGameObjectBalloonWindow(queueId, targetGameObject, text);
+			} else {
+				$gameTemp.createGameObjectBalloonWindow(targetGameObject, text);
+			}
+		}
+		
+		/*
 		if (queued) {
 			$gameTemp.queueBalloonWindow(queueId, targetId, text);
 		} else {
 			$gameTemp.createBalloonWindow(targetId, text);
 		}
+		*/
 		
 		return false;
 	};
@@ -1113,6 +1181,7 @@ Imported.AO_BalloonWindow = true;
 			this._gameObjects = [];
 			this._dataObjects = [];
 			this._sprites = [];
+			this._targetObjects = [];
 		}
 		
 		static setWindowSkin() {
@@ -1226,25 +1295,32 @@ Imported.AO_BalloonWindow = true;
 		}
 		
 		static queueBalloonWindowState(queueIndex, targetId, balloonWindowState) {
+			//キュー登録用のターゲットオブジェクトを取得
+			const targetObject = this.gameObjectTargetObject(getTargetGameObject(targetId));
+			this.pushBalloonWindowStateToQueue(queueIndex, targetObject, balloonWindowState);
+		}
+		
+		static queueGameObjectBalloonWindowState(queueIndex, gameObject, balloonWindowState) {
+			const targetObject = this.gameObjectTargetObject(gameObject);
+			this.pushBalloonWindowStateToQueue(queueIndex, targetObject, balloonWindowState);
+		}
+		
+		static pushBalloonWindowStateToQueue(queueIndex, targetObject, balloonWindowState) {
 			const queues = $gameSystem.balloonWindowQueues();
 			if (queues[queueIndex] === undefined) {
 				queues[queueIndex] = [];
 			}
-			//実行中のイベント・行動中のバトラーのみゲームオブジェクトidで登録する
-			let gameObjectId = -1;
-			if (targetId === 0) {
-				gameObjectId = this.gameObjectId(getTargetGameObject(targetId));
-			}
+			
 			//キューにゲームオブジェクトＩＤとウインドウステートを登録
-			//ポップのウエイトをどう設定しようか
 			balloonWindowState.queueWait = true;
 			setDisplayWait(balloonWindowState);
 			setNextPopWait(balloonWindowState);
-			const queued = queuedState(targetId, gameObjectId, balloonWindowState);
+			const queued = queuedState(targetObject, balloonWindowState);
+			
 			//キュー内情報にマップIDを登録する
 			if (this.inBattle()) {
 				queued.mapId = 0
-			} else if (gameObjectId >= 0){
+			} else {
 				queued.mapId = $gameMap.mapId();
 			}
 			queues[queueIndex].push(queued);
@@ -1263,7 +1339,45 @@ Imported.AO_BalloonWindow = true;
 			this._gameObjects[this._gameObjectId] = gameObject;
 			this._dataObjects[this._gameObjectId] = getTargetGameObjectData(gameObject);
 			this._sprites[this._gameObjectId] = sprite;
+			//キュー用の情報登録
+			this._targetObjects[this._gameObjectId] = this.createTargetObject(gameObject);
 			this._gameObjectId++;
+		}
+		
+		//キュー登録用情報作成
+		static createTargetObject(gameObject) {
+			const targetObject = {"type": targetTypes.empty, "id": 0, "name": "", "mapId": 0};
+			if (gameObject instanceof Game_Player) {
+				targetObject.type = targetTypes.player;
+				targetObject.id =  $gameParty.leader().actorId();
+				targetObject.name = $gameParty.leader().name();
+				targetObject.mapId = 0;
+			} else if (gameObject instanceof Game_Follower) {
+				targetObject.type = targetTypes.follower;
+				targetObject.id = gameObject.actor() ? gameObject.actor().actorId() : 0;
+				targetObject.name = gameObject.actor() ? gameObject.actor().name() : "";
+				targetObject.mapId = 0;
+			} else if (gameObject instanceof Game_Event) {
+				targetObject.type = targetTypes.event;
+				targetObject.id = gameObject.eventId();
+				targetObject.name = gameObject.event().name;
+				targetObject.mapId = gameObject._mapId;
+			} else if (gameObject instanceof Game_Actor) {
+				targetObject.type = targetTypes.actor;
+				targetObject.id = gameObject.actorId();
+				targetObject.name = gameObject.name();
+				targetObject.mapId = -1;
+			} else if (gameObject instanceof Game_Enemy) {
+				targetObject.type = targetTypes.enemy;
+				targetObject.id = gameObject.enemyId();
+				targetObject.name = gameObject.name();
+				targetObject.mapId = -1;
+			} else if (gameObject.isDummy && gameObject.isDummy()) {
+				targetObject.type = targetTypes.dummy;
+				targetObject.name = gameObject.battler().name();
+				targetObject.mapId = $gameMap ? $gameMap.mapId() : 0;
+			}
+			return targetObject;
 		}
 		
 		static clearGameObjectSet(gameObject) {
@@ -1271,7 +1385,8 @@ Imported.AO_BalloonWindow = true;
 			if (id >= 0) {
 				delete this._gameObjects[id];
 				delete this._dataObjects[id];
-				delete this._sprites[this._gameObjectId];
+				delete this._sprites[id];
+				delete this._targetObjects[id];
 			}
 		}
 		
@@ -1306,6 +1421,34 @@ Imported.AO_BalloonWindow = true;
 			return this._sprites[this.gameObjectId(gameObject)];
 		}
 		
+		static gameObjectTargetObject(gameObject) {
+			return this._targetObjects[this.gameObjectId(gameObject)];
+		}
+		
+		static targetObjectId(targetObject) {
+			for (let i = 0; i < this._targetObjects.length; i++) {
+				const target = this._targetObjects[i];
+				if (target && target.type === targetObject.type && target.name === targetObject.name 
+				&& target.id === targetObject.id && target.mapId === targetObject.mapId) {
+					return i;
+				}
+			}
+			return -1;
+		}
+		
+		static targetObjectGameObject(targetObject) {
+			return this._gameObjects[this.targetObjectId(targetObject)];
+		}
+		
+		static nameTargetObject(name) {
+			for (let i = 0; i < this._targetObjects.length; i++) {
+				const target = this._targetObjects[i];
+				if (target.name === name) {
+					return target;
+				}
+			}
+		}
+
 		//名前からターゲット番号を取得する。作成時にゲームオブジェクトに戻されるから邪道
 		static nameTargetNumber(name) {
 			const nameIndex = this._dataObjects.findIndex((dataObject) => {
@@ -1427,19 +1570,15 @@ Imported.AO_BalloonWindow = true;
 			const queues = $gameSystem.balloonWindowQueues();
 			queues.forEach((queue) => {
 				if (queue) {
-					const queueLeadr = queue[0];
-					const balloonWindowState = queueLeadr ? queueLeadr.balloonWindowState : null;
+					const queueLeader = queue[0];
+					const balloonWindowState = queueLeader ? queueLeader.balloonWindowState : null;
 					//キューの先頭が未表示なら表示
-					if (queueLeadr && balloonWindowState && balloonWindowState.queueWait) {
-						//実行中のイベント・行動中のバトラーはゲームオブジェクトidで再生
-						if (queueLeadr.gameObjectId >= 0) {
-							//マップIDが同じときのみ再生
-							if (queueLeadr.mapId === $gameMap.mapId()) {
-								this.addBalloonWindow(this._gameObjects[queueLeadr.gameObjectId], balloonWindowState);
-							}
-						} else {
-							this.addBalloonWindow(getTargetGameObject(queueLeadr.targetId), balloonWindowState);
+					if (queueLeader && balloonWindowState && balloonWindowState.queueWait) {
+						const gameObject = this.targetObjectGameObject(queueLeader.targetObject);
+						if (gameObject) {
+							this.addBalloonWindow(gameObject, balloonWindowState)
 						}
+						
 						balloonWindowState.queueWait = false;
 					}
 					//ウエイトがおわったらキューから除去してシフト
@@ -1638,9 +1777,11 @@ Imported.AO_BalloonWindow = true;
 		
 		update() {
 			const gameObjectRectangle = BalloonWindowManager.gameObjectRectangle(this.gameObject);
-			this.updateWindowPosition(gameObjectRectangle);
-			this.updateAnchorTop(gameObjectRectangle);
-			this.updateAnchorState(gameObjectRectangle);
+			if (gameObjectRectangle) {
+				this.updateWindowPosition(gameObjectRectangle);
+				this.updateAnchorTop(gameObjectRectangle);
+				this.updateAnchorState(gameObjectRectangle);
+			}
 			this.updateBalloonWindowState();
 			this.updateAnimationStates();
 			this.updateSe();
