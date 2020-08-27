@@ -339,10 +339,10 @@ Imported.AO_TextFileLoader = true;
 	const parameters = PluginManager.parameters(pluginName);
 	
 	const randomInBlock = getArgBoolean(parameters["条件ブロックランダム"] || "true");
-	const damageSpeakPercent = getArgNumber(parameters["被ダメージ台詞発動率"] || 100);
-	const skillSpeakPercent = getArgNumber(parameters["スキル台詞発動率"] || 100);
-	const evadeSpeakPercent = getArgNumber(parameters["回避台詞発動率"] || 100);
-	const collapseSpeakPercent = getArgNumber(parameters["戦闘不能台詞発動率"] || 100);
+	const damageSpeakPercent = getArgNumber(parameters["被ダメージ台詞発動率"] || 100) / 100;
+	const skillSpeakPercent = getArgNumber(parameters["スキル台詞発動率"] || 100) / 100;
+	const evadeSpeakPercent = getArgNumber(parameters["回避台詞発動率"] || 100) / 100;
+	const collapseSpeakPercent = getArgNumber(parameters["戦闘不能台詞発動率"] || 100) / 100;
 	const maxEngageBattlerNumber = getArgNumber(parameters["戦闘開始時台詞人数"] || 1);
 	const maxVictoryActorNumber = getArgNumber(parameters["戦闘終了時台詞人数"] || 1);
 	const filePath = getArgString(parameters['filePath'] || 'texts') + "/";
@@ -1275,7 +1275,7 @@ Imported.AO_TextFileLoader = true;
 		Game_Battler.prototype.createDamageBalloonWindow = function() {
 			if (!this.canSpeak()) return;
 			if (!this.autoBalloonWindowInfo.damage || !this.autoBalloonWindowInfo.damage.length) return;
-			if (this.autoBalloonWindowInfo.damageSpeakPercent <= Math.floor(Math.random() * 100)) return;
+			if (this.autoBalloonWindowInfo.damageSpeakPercent <= Math.random()) return;
 			const textStateName = this.autoBalloonWindowInfo.damage;
 			this.loadTextStateToBalloonWindow(textStateName);
 		};
@@ -1295,7 +1295,7 @@ Imported.AO_TextFileLoader = true;
 		Game_Battler.prototype.createEvasionBalloonWindow = function() {
 			if (!this.canSpeak()) return;
 			if (!this.autoBalloonWindowInfo.evade || !this.autoBalloonWindowInfo.evade.length) return;
-			if (this.autoBalloonWindowInfo.evadeSpeakPercent <= Math.floor(Math.random() * 100)) return;
+			if (this.autoBalloonWindowInfo.evadeSpeakPercent <= Math.random()) return;
 			const textStateName = this.autoBalloonWindowInfo.evade;
 			this.loadTextStateToBalloonWindow(textStateName);
 		};
@@ -1308,7 +1308,7 @@ Imported.AO_TextFileLoader = true;
 		
 		Game_Battler.prototype.createCollapseBalloonWindow = function() {
 			if (!this.autoBalloonWindowInfo.collapse || !this.autoBalloonWindowInfo.collapse.length) return;
-			if (this.autoBalloonWindowInfo.collapseSpeakPercent <= Math.floor(Math.random() * 100)) return;
+			if (this.autoBalloonWindowInfo.collapseSpeakPercent <= Math.random()) return;
 			const textStateName = this.autoBalloonWindowInfo.collapse;
 			this.loadTextStateToBalloonWindow(textStateName);
 		};
